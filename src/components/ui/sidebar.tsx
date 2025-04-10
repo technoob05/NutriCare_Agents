@@ -1,10 +1,10 @@
-
 // src/components/ui/sidebar.tsx
 'use client';
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils } from 'lucide-react'; // Example icons
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Sidebar() {
   const recentChats = [
@@ -47,6 +47,7 @@ export function Sidebar() {
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
           <HelpCircle className="h-4 w-4" /> Help & Support
         </Button>
+        <ThemeToggle />
       </div>
     </div>
   );
