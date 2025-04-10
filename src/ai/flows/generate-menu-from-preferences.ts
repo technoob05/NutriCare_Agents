@@ -110,7 +110,9 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     outputSchema: GenerateMenuFromPreferencesOutputSchema,
   },
   async input => {
-    const searchResult = await searchRecipes(input);
+    const searchResult = await searchRecipes({
+      query: `Vietnamese recipes ${input.preferences}`,
+    });
 
     const {output} = await prompt({
       ...input,
