@@ -110,15 +110,21 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     outputSchema: GenerateMenuFromPreferencesOutputSchema,
   },
   async input => {
-    const { preferences } = input;
-    const searchResult = await searchRecipes.func({ // Access the 'func' property to call the tool
-      query: `Vietnamese recipes ${preferences}`,
-    });
+    try {
+      const searchResult = await searchRecipes.func({
+        query: `Vietnamese recipes ${input.preferences}`,
+      });
 
-    const {output} = await prompt({
-      ...input,
-      searchResults: searchResult,
-    });
-    return output!;
+      const {output} = await prompt({
+        ...input,
+        searchResults: searchResult,
+      });
+      return output!;
+    } catch (error) {
+      console.error('Error in generateMenuFromPreferencesFlow:', error);
+      throw error;
+    }
   }
 );
+
+    
