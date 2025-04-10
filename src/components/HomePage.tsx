@@ -337,6 +337,11 @@ const HomePage = () => {
         generateMenu();
     };
 
+    const calculateInteractiveMenuMaxHeight = () => {
+      const baseHeight = isMobile ? 350 : 300; // Adjust base height for mobile
+      return `calc(100vh - ${baseHeight}px)`;
+    };
+
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -412,7 +417,7 @@ const HomePage = () => {
 
                                 ) : message.type === 'component' && message.text === 'menu_component' && menuResponseData?.menu ? (
                                     <div className="w-full">
-                                         <ScrollArea className="max-h-[calc(100vh-300px)]"> {/* Dynamic height based on screen size */}
+                                         <ScrollArea className={`max-h-[${calculateInteractiveMenuMaxHeight()}]`}> {/* Dynamic height based on screen size */}
                                             <InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, feedbackRequest: menuResponseData.feedbackRequest }} />
                                          </ScrollArea>
                                          <Button
