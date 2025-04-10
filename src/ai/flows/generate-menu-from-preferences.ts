@@ -1,4 +1,3 @@
-// src/ai/flows/generate-menu-from-preferences.ts
 'use server';
 /**
  * @fileOverview Generates a personalized Vietnamese menu based on user preferences.
