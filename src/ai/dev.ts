@@ -1,1 +1,2 @@
-// Flows will be imported for their side effects in this file.
+import '@/ai/flows/suggest-menu-modifications-based-on-feedback.ts';
+import '@/ai/flows/generate-menu-from-preferences.ts';
