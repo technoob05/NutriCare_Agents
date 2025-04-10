@@ -111,7 +111,6 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
   },
   async input => {
     try {
-      // const searchResult = await searchRecipes.func({  //OLD CODE
       const searchResult = await ai.useTool(searchRecipes, {
         query: `Vietnamese recipes ${input.preferences}`,
       });
