@@ -318,7 +318,8 @@ export function HealthInformationForm() {
                             </Fieldset>
                         )}
 
-                        {/*<div className="flex justify-between">
+                        {/*
+                         
                             {currentStep > 1 && (
                                 <Button variant="secondary" onClick={prevStep}>
                                     Previous
@@ -334,7 +335,7 @@ export function HealthInformationForm() {
                                     Submit
                                 </Button>
                             )}
-                        </div>*/}
+                         */}
                          <Button type="submit">
                             Save
                         </Button>
