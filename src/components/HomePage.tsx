@@ -44,7 +44,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from '@/components/ui/badge'; // Importing Badge
 
-
 interface ChatMessage {
     id: number;
     text: string;
@@ -196,10 +195,10 @@ const HomePage = () => {
             if (isListening) {
                 recognition.current.stop();
                 setIsListening(false);
-                toast({
-                    title: "Voice Input Stopped",
-                    description: "Speech recognition stopped manually."
-                });
+                 toast({
+                     title: "Voice Input Stopped",
+                     description: "Speech recognition stopped manually."
+                 });
             } else {
                 recognition.current.start();
             }
@@ -372,7 +371,7 @@ const HomePage = () => {
             <Sidebar />
 
             <div className="flex flex-col overflow-hidden">
-               {/* Top Section - Streamlined Input */}
+               
                <Card className={cn("m-4 rounded-lg shadow-md bg-white dark:bg-gray-800 overflow-hidden", !isPreferenceMenuOpen && "hidden md:block")}>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-semibold"><ChefHat className="mr-2 inline-block h-5 w-5"/> Menu Preferences</CardTitle>
@@ -423,137 +422,138 @@ const HomePage = () => {
                              ))}
                          </div>
                     </CardContent>
-                </Card>
-                {isMobile && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="m-4"
-                        onClick={() => setIsPreferenceMenuOpen(!isPreferenceMenuOpen)}
-                    >
-                        {isPreferenceMenuOpen ? (
-                            <>
-                                Hide Preferences <ChevronUp className="ml-2 h-4 w-4" />
-                            </>
-                        ) : (
-                            <>
-                                Show Preferences <ChevronDown className="ml-2 h-4 w-4" />
-                            </>
-                        )}
-                    </Button>
-                )}
+                 </Card>
+                 {isMobile && (
+                     <Button
+                         variant="outline"
+                         size="sm"
+                         className="m-4"
+                         onClick={() => setIsPreferenceMenuOpen(!isPreferenceMenuOpen)}
+                     >
+                         {isPreferenceMenuOpen ? (
+                             <>
+                                 Hide Preferences <ChevronUp className="ml-2 h-4 w-4" />
+                             </>
+                         ) : (
+                             <>
+                                 Show Preferences <ChevronDown className="ml-2 h-4 w-4" />
+                             </>
+                         )}
+                     </Button>
+                 )}
 
-                <ScrollArea className="flex-grow p-4">
-                    <div className="space-y-4 max-w-4xl mx-auto" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
-                        {isLoading && (
-                            <Alert variant="default">
-                                <Info className="h-4 w-4" />
-                                <AlertTitle>Generating Menu</AlertTitle>
-                                <AlertDescription>The AI is crafting your perfect menu. Please wait...</AlertDescription>
-                            </Alert>
-                        )}
+                 <ScrollArea className="flex-grow p-4">
+                     <div className="space-y-4 max-w-4xl mx-auto" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+                         {isLoading && (
+                             <Alert variant="default">
+                                 <Info className="h-4 w-4" />
+                                 <AlertTitle>Generating Menu</AlertTitle>
+                                 <AlertDescription>The AI is crafting your perfect menu. Please wait...</AlertDescription>
+                             </Alert>
+                         )}
 
-                        {chatHistory.map((message) => (
-                            <div
-                                key={message.id}
-                                className={`flex w-full ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                {message.type === 'trace_display' && message.traceData ? (
-                                    <AgentProcessVisualizer trace={message.traceData} />
+                         {chatHistory.map((message) => (
+                             <div
+                                 key={message.id}
+                                 className={`flex w-full ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                             >
+                                 {message.type === 'trace_display' && message.traceData ? (
+                                     <AgentProcessVisualizer trace={message.traceData} />
 
-                                ) : message.type === 'component' && message.text === 'menu_component' && menuResponseData?.menu ? (
-                                    <div className="w-full">
-                                         <ScrollArea className={`max-h-[${calculateInteractiveMenuMaxHeight()}]`}> {/* Dynamic height based on screen size */}
-                                            <InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, feedbackRequest: menuResponseData.feedbackRequest }} />
-                                         </ScrollArea>
-                                         <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="mt-2"
-                                              onClick={() => {
-                                                if (menuResponseData?.menu) {
-                                                  const menuText = JSON.stringify(menuResponseData.menu);
-                                                  handleTextToSpeech(menuText);
-                                                } else {
-                                                  toast({
-                                                    variant: "destructive",
-                                                    title: "No Menu to Speak",
-                                                    description: "Generate a menu first to enable text-to-speech."
-                                                  });
-                                                }
-                                              }}
-                                              disabled={isSpeaking}
-                                            >
-                                              {isSpeaking ? <StopCircle className="mr-2 h-4 w-4 animate-pulse" /> : <Volume2 className="mr-2 h-4 w-4" />}
-                                              {isSpeaking ? "Stop Speaking" : "Read Menu"}
-                                            </Button>
-                                    </div>
+                                 ) : message.type === 'component' && message.text === 'menu_component' && menuResponseData?.menu ? (
+                                     <div className="w-full">
+                                          <ScrollArea className={`max-h-[${calculateInteractiveMenuMaxHeight()}]`}> {/* Dynamic height based on screen size */}
+                                             <InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, feedbackRequest: menuResponseData.feedbackRequest }} />
+                                          </ScrollArea>
+                                          <Button
+                                               variant="outline"
+                                               size="sm"
+                                               className="mt-2"
+                                               onClick={() => {
+                                                 if (menuResponseData?.menu) {
+                                                   const menuText = JSON.stringify(menuResponseData.menu);
+                                                   handleTextToSpeech(menuText);
+                                                 } else {
+                                                   toast({
+                                                     variant: "destructive",
+                                                     title: "No Menu to Speak",
+                                                     description: "Generate a menu first to enable text-to-speech."
+                                                   });
+                                                 }
+                                               }}
+                                               disabled={isSpeaking}
+                                             >
+                                               {isSpeaking ? <StopCircle className="mr-2 h-4 w-4 animate-pulse" /> : <Volume2 className="mr-2 h-4 w-4" />}
+                                               {isSpeaking ? "Stop Speaking" : "Read Menu"}
+                                             </Button>
+                                     </div>
 
-                                ) : message.type === 'error' ? (
-                                    <Alert variant="destructive">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <AlertTitle>Error</AlertTitle>
-                                        <AlertDescription>{message.text}</AlertDescription>
-                                    </Alert>
+                                 ) : message.type === 'error' ? (
+                                     <Alert variant="destructive">
+                                         <AlertCircle className="h-4 w-4" />
+                                         <AlertTitle>Error</AlertTitle>
+                                         <AlertDescription>{message.text}</AlertDescription>
+                                     </Alert>
 
-                                ) : message.type === 'system' ? (
-                                    <Alert variant="default">
-                                        <CheckCircle className="h-4 w-4" />
-                                        <AlertTitle>System Message</AlertTitle>
-                                        <AlertDescription>{message.text}</AlertDescription>
-                                    </Alert>
-                                ) : (
-                                    <div
-                                        className={`max-w-full sm:max-w-md lg:max-w-2xl p-3 rounded-lg shadow-sm ${message.type === 'user'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                                            }`}
-                                    >
-                                        <pre className="whitespace-pre-wrap font-sans text-sm">
-                                            {message.text}
-                                        </pre>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                    </div>
-                </ScrollArea>
+                                 ) : message.type === 'system' ? (
+                                     <Alert variant="default">
+                                         <CheckCircle className="h-4 w-4" />
+                                         <AlertTitle>System Message</AlertTitle>
+                                         <AlertDescription>{message.text}</AlertDescription>
+                                     </Alert>
+                                 ) : (
+                                     <div
+                                         className={`max-w-full sm:max-w-md lg:max-w-2xl p-3 rounded-lg shadow-sm ${message.type === 'user'
+                                             ? 'bg-blue-600 text-white'
+                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                             }`}
+                                     >
+                                         <pre className="whitespace-pre-wrap font-sans text-sm">
+                                             {message.text}
+                                         </pre>
+                                     </div>
+                                 )}
+                             </div>
+                         ))}
+                         <div ref={chatEndRef} />
+                     </div>
+                 </ScrollArea>
 
-                 {/* Input Area - More Aesthetically Pleasing */}
-                 <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0">
-                      <div className="max-w-full mx-auto flex flex-col md:flex-row gap-2 items-center">
-                           {menuResponseData?.menu && (
-                               <div className="flex items-center gap-2 w-full">
-                                    <div className="relative flex-grow">
-                                         <Input
-                                              placeholder={menuModifications ? "Menu modified. Generate new or clear..." : "Share your feedback..."}
-                                              value={feedback}
-                                              onChange={handleFeedbackChange}
-                                              className="flex-grow resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 pr-10"
-                                              disabled={isLoading || !!menuModifications}
-                                              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isLoading && feedback.trim() && !menuModifications) { e.preventDefault(); suggestModifications(); } }} />
-                                         <Button
-                                              onClick={handleFeedbackSpeechRecognition}
-                                              disabled={isLoading}
-                                              size="icon"
-                                              variant="ghost"
-                                              className="absolute right-1 top-1/2 -translate-y-1/2"
-                                              aria-label="Toggle Feedback Voice Input"
-                                         >
-                                              {isFeedbackListening ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5" />}
-                                         </Button>
-                                    </div>
-                                    <Button onClick={suggestModifications} disabled={isLoading || !feedback.trim() || !!menuModifications} size="icon" className="rounded-full" aria-label="Send Feedback">
-                                         <SendHorizontal className="h-5 w-5" />
-                                    </Button>
-                               </div>
-                           )}
-                      </div>
-                 </div>
-            </div>
-        </div>
-    );
-};
+                  
+                  <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0">
+                       <div className="max-w-full mx-auto flex flex-col md:flex-row gap-2 items-center">
+                            {menuResponseData?.menu && (
+                                <div className="flex items-center gap-2 w-full">
+                                     <div className="relative flex-grow">
+                                          <Input
+                                               placeholder={menuModifications ? "Menu modified. Generate new or clear..." : "Share your feedback..."}
+                                               value={feedback}
+                                               onChange={handleFeedbackChange}
+                                               className="flex-grow resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 pr-10"
+                                               disabled={isLoading || !!menuModifications}
+                                               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isLoading && feedback.trim() && !menuModifications) { e.preventDefault(); suggestModifications(); } }} />
+                                          <Button
+                                               onClick={handleFeedbackSpeechRecognition}
+                                               disabled={isLoading}
+                                               size="icon"
+                                               variant="ghost"
+                                               className="absolute right-1 top-1/2 -translate-y-1/2"
+                                               aria-label="Toggle Feedback Voice Input"
+                                          >
+                                               {isFeedbackListening ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5" />}
+                                          </Button>
+                                     </div>
+                                     <Button onClick={suggestModifications} disabled={isLoading || !feedback.trim() || !!menuModifications} size="icon" className="rounded-full" aria-label="Send Feedback">
+                                          <SendHorizontal className="h-5 w-5" />
+                                     </Button>
+                                </div>
+                            )}
+                       </div>
+                  </div>
+             </div>
+         </div>
+     );
+ };
 
-export default HomePage;
+ export default HomePage;
+ 
