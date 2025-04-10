@@ -43,22 +43,6 @@ export async function generateMenuFromPreferences(
   return generateMenuFromPreferencesFlow(input);
 }
 
-const searchRecipes = ai.defineTool({
-  name: 'searchRecipes',
-  description: 'Searches for Vietnamese recipes based on dietary preferences.',
-  inputSchema: z.object({
-    query: z.string().describe('The search query for Vietnamese recipes.'),
-  }),
-  outputSchema: z.array(z.object({
-    title: z.string(),
-    url: z.string(),
-    snippet: z.string(),
-  })),
-  func: async (input) => {
-    return await googleSearch(input.query);
-  },
-});
-
 const prompt = ai.definePrompt({
   name: 'generateMenuFromPreferencesPrompt',
   input: {
@@ -110,9 +94,8 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
   },
   async input => {
     try {
-      const searchResult = await ai.useTool(searchRecipes, {
-        query: `Vietnamese recipes ${input.preferences}`,
-      });
+      const {preferences} = input;
+      const searchResult = await googleSearch(`Vietnamese recipes ${preferences}`);
 
       const {output} = await prompt({
         ...input,
