@@ -42,6 +42,8 @@ import {
     DialogClose,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils";
+import { Badge } from '@/components/ui/badge'; // Importing Badge
+
 
 interface ChatMessage {
     id: number;
@@ -363,6 +365,7 @@ const HomePage = () => {
       return `calc(100vh - ${baseHeight}px)`;
     };
 
+     const quickReplies = ["Gợi ý bữa sáng", "Thực phẩm ít calo", "Món chay"];
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -407,15 +410,17 @@ const HomePage = () => {
                         </div>
                          {/* Quick Reply Buttons */}
                          <div className="flex flex-wrap gap-2 mt-2">
-                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Gợi ý bữa sáng")}>
-                                   Gợi ý bữa sáng
-                              </Button>
-                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Thực phẩm ít calo")}>
-                                   Thực phẩm ít calo
-                              </Button>
-                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Món chay")}>
-                                   Món chay
-                              </Button>
+                             {quickReplies.map((reply) => (
+                                 <Badge
+                                     key={reply}
+                                     variant="secondary"
+                                     className="text-xs"
+                                     onClick={() => handleQuickReply(reply)}
+                                     style={{ cursor: 'pointer' }} // Make it look clickable
+                                 >
+                                     {reply}
+                                 </Badge>
+                             ))}
                          </div>
                     </CardContent>
                 </Card>
