@@ -22,6 +22,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input"
 import {motion} from 'framer-motion'; // animation
 import { useIsMobile } from '@/hooks/use-mobile'; //Check Mobile
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import { Settings } from 'lucide-react';
+import { HealthInformationForm } from '@/components/HealthInformationForm';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+} from "@/components/ui/dialog"
 
 interface ChatMessage {
     id: number;
@@ -398,7 +417,7 @@ const HomePage = () => {
                 </Card>
 
                 <ScrollArea className="flex-grow p-4">
-                    <div className="space-y-4 max-w-4xl mx-auto">
+                    <div className="space-y-4 max-w-4xl mx-auto" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                         {isLoading && (
                             <Alert variant="default">
                                 <Info className="h-4 w-4" />
