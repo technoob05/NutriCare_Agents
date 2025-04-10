@@ -331,10 +331,10 @@ const HomePage = () => {
 
 
     return (
-        <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+        <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
             <Sidebar />
 
-            <div className="flex flex-col flex-grow overflow-hidden">
+            <div className="flex flex-col overflow-hidden">
                {/* Top Section - Streamlined Input */}
                <Card className="m-4 rounded-lg shadow-md bg-white dark:bg-gray-800 overflow-hidden">
                     <CardHeader className="pb-2">
@@ -431,7 +431,7 @@ const HomePage = () => {
                                     </Alert>
                                 ) : (
                                     <div
-                                        className={`max-w-xl lg:max-w-2xl p-3 rounded-lg shadow-sm ${message.type === 'user'
+                                        className={`max-w-full sm:max-w-md lg:max-w-2xl p-3 rounded-lg shadow-sm ${message.type === 'user'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                                             }`}
@@ -449,9 +449,9 @@ const HomePage = () => {
 
                  {/* Input Area - More Aesthetically Pleasing */}
                  <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0">
-                      <div className="max-w-4xl mx-auto">
+                      <div className="max-w-full mx-auto flex flex-col md:flex-row gap-2 items-center">
                            {menuResponseData?.menu && (
-                               <div className="flex items-center gap-2">
+                               <div className="flex items-center gap-2 w-full">
                                     <div className="relative flex-grow">
                                          <Textarea
                                               placeholder={menuModifications ? "Menu modified. Generate new or clear..." : "Share your feedback..."}

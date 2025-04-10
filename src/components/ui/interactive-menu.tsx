@@ -1,4 +1,3 @@
-
 // src/components/ui/interactive-menu.tsx
 'use client';
 
@@ -131,7 +130,7 @@ export function InteractiveMenu({ menuData }: InteractiveMenuProps) {
         return (
             <div className="w-full">
                  <Tabs defaultValue={daysOfWeek[0]} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7 h-auto mb-2">
+                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-7 h-auto mb-2">
                         {daysOfWeek.map(day => (
                              <TabsTrigger key={day} value={day} className="py-1.5 text-xs sm:text-sm">
                                 {day.substring(0,3)}

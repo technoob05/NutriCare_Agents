@@ -14,7 +14,7 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="flex flex-col h-full w-64 bg-gray-50 dark:bg-gray-800 p-4 border-r dark:border-gray-700">
+    <div className="hidden md:flex flex-col h-full w-64 bg-gray-50 dark:bg-gray-800 p-4 border-r dark:border-gray-700">
       <div className="mb-6">
         <h1 className="text-xl font-semibold mb-4 dark:text-white flex items-center">
           <Utensils className="h-6 w-6 mr-2 text-primary" /> Viet Menu AI
