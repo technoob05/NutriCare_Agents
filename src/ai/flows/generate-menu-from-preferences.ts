@@ -54,7 +54,7 @@ const searchRecipes = ai.defineTool({
     url: z.string(),
     snippet: z.string(),
   })),
-  async func(input) {
+  func: async (input) => {
     return await googleSearch(input.query);
   },
 });
@@ -110,9 +110,7 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     outputSchema: GenerateMenuFromPreferencesOutputSchema,
   },
   async input => {
-    const searchResult = await searchRecipes({
-      query: `Vietnamese recipes ${input.preferences}`,
-    });
+    const searchResult = await searchRecipes(input);
 
     const {output} = await prompt({
       ...input,
@@ -121,5 +119,3 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     return output!;
   }
 );
-
-    
