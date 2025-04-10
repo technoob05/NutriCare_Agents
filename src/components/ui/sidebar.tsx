@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu } from 'lucide-react'; // Updated icons
+import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X } from 'lucide-react'; // Updated icons
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -18,9 +18,9 @@ export function Sidebar() {
     }
   }, [isMobile]);
 
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
+  const toggleSidebar = useCallback(() => {
+    setIsOpen((prev) => !prev);
+  }, []);
 
   const recentChats = [
     { id: 1, title: 'Vegetarian Weekly Plan' },
@@ -36,10 +36,10 @@ export function Sidebar() {
           onClick={toggleSidebar}
           variant="outline"
           size="icon"
-          className="md:hidden fixed top-12 left-2 z-30"
+          className={`md:hidden fixed top-2 left-2 z-30 ${isOpen ? 'ml-64' : ''} transition-transform`}
           aria-label="Toggle Sidebar"
         >
-          <Menu className="h-4 w-4" />
+          {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
       )}
 
@@ -87,4 +87,3 @@ export function Sidebar() {
     </>
   );
 }
-
