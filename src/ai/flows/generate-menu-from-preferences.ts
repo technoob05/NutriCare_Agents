@@ -54,7 +54,7 @@ const searchRecipes = ai.defineTool({
     url: z.string(),
     snippet: z.string(),
   })),
-  async fn(input) {
+  async func(input) {
     return await googleSearch(input.query);
   },
 });
@@ -121,3 +121,5 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     return output!;
   }
 );
+
+    
