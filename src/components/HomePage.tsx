@@ -12,7 +12,7 @@ import { suggestMenuModificationsBasedOnFeedback } from '@/ai/flows/suggest-menu
 import { InteractiveMenu } from '@/components/ui/interactive-menu';
 import { AgentProcessVisualizer } from '@/components/ui/agent-process-visualizer';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SendHorizontal, Lightbulb, ChefHat, Mic, Volume2, StopCircle } from 'lucide-react'; // Updated icons
+import { SendHorizontal, Lightbulb, ChefHat, Mic, Volume2, StopCircle, ChevronDown, ChevronUp } from 'lucide-react'; // Updated icons
 import { Sidebar } from '@/components/ui/sidebar';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +41,7 @@ import {
     DialogTrigger,
     DialogClose,
 } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils";
 
 interface ChatMessage {
     id: number;
@@ -69,6 +70,7 @@ const HomePage = () => {
     const recognition = useRef<SpeechRecognition | null>(null);
     const feedbackRecognition = useRef<SpeechRecognition | null>(null);
     const synth = useRef(window.speechSynthesis);
+     const [isPreferenceMenuOpen, setIsPreferenceMenuOpen] = useState(true); // Toggle state for preference menu
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -368,7 +370,7 @@ const HomePage = () => {
 
             <div className="flex flex-col overflow-hidden">
                {/* Top Section - Streamlined Input */}
-               <Card className="m-4 rounded-lg shadow-md bg-white dark:bg-gray-800 overflow-hidden">
+               <Card className={cn("m-4 rounded-lg shadow-md bg-white dark:bg-gray-800 overflow-hidden", !isPreferenceMenuOpen && "hidden md:block")}>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-semibold"><ChefHat className="mr-2 inline-block h-5 w-5"/> Menu Preferences</CardTitle>
                         <CardDescription>Specify your dietary requirements and cuisine preferences.</CardDescription>
@@ -417,6 +419,24 @@ const HomePage = () => {
                          </div>
                     </CardContent>
                 </Card>
+                {isMobile && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="m-4"
+                        onClick={() => setIsPreferenceMenuOpen(!isPreferenceMenuOpen)}
+                    >
+                        {isPreferenceMenuOpen ? (
+                            <>
+                                Hide Preferences <ChevronUp className="ml-2 h-4 w-4" />
+                            </>
+                        ) : (
+                            <>
+                                Show Preferences <ChevronDown className="ml-2 h-4 w-4" />
+                            </>
+                        )}
+                    </Button>
+                )}
 
                 <ScrollArea className="flex-grow p-4">
                     <div className="space-y-4 max-w-4xl mx-auto" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
