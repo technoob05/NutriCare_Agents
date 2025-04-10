@@ -98,7 +98,7 @@ export function Sidebar() {
                     onClick={toggleSidebar}
                     variant="outline"
                     size="icon"
-                    className={`md:hidden fixed top-2 left-2 z-50 ${isOpen ? '' : ''} transition-transform`}
+                    className={`md:hidden fixed top-2 left-2 z-50 transition-transform ${isOpen ? 'translate-x-64' : 'translate-x-0'}`}
                     aria-label="Toggle Sidebar"
                 >
                     {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
