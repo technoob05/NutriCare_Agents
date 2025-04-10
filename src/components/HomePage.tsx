@@ -412,7 +412,9 @@ const HomePage = () => {
 
                                 ) : message.type === 'component' && message.text === 'menu_component' && menuResponseData?.menu ? (
                                     <div className="w-full">
-                                        <InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, feedbackRequest: menuResponseData.feedbackRequest }} />
+                                         <ScrollArea className="max-h-[calc(100vh-300px)]"> {/* Dynamic height based on screen size */}
+                                            <InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, feedbackRequest: menuResponseData.feedbackRequest }} />
+                                         </ScrollArea>
                                          <Button
                                               variant="outline"
                                               size="sm"
