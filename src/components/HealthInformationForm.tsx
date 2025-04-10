@@ -15,6 +15,8 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -60,136 +62,130 @@ export function HealthInformationForm() {
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Name</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter your name" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                This is your public display name.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="age"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Age</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="Enter your age" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please enter your age in years.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="height"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Height (cm)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="Enter your height in cm" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please enter your height in centimeters.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="weight"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Weight (kg)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="Enter your weight in kg" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please enter your weight in kilograms.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="allergies"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Allergies</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter any allergies" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please list any food allergies you have.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="dietaryRestrictions"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Dietary Restrictions</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter any dietary restrictions" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please list any dietary restrictions you have (e.g., vegetarian, vegan, gluten-free).
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="medicalConditions"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Medical Conditions</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter any medical conditions" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please list any medical conditions that may affect your diet.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="activityLevel"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Activity Level</FormLabel>
-                            <FormControl>
-                                <Input placeholder="Enter your activity level" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Please describe your typical daily activity level (e.g., sedentary, lightly active, moderately active, very active).
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Personal Information</CardTitle>
+                        <CardDescription>Enter your basic personal details.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Name</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter your name" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="age"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Age</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="Enter your age" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="height"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Height (cm)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="Enter your height in cm" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <FormField
+                            control={form.control}
+                            name="weight"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Weight (kg)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="Enter your weight in kg" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Health Details</CardTitle>
+                        <CardDescription>Provide details about your health and dietary needs.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <FormField
+                            control={form.control}
+                            name="allergies"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Allergies</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter any allergies" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="dietaryRestrictions"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Dietary Restrictions</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter any dietary restrictions" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="medicalConditions"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Medical Conditions</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter any medical conditions" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="activityLevel"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Activity Level</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Enter your activity level" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
                 <Button type="submit">Submit</Button>
             </form>
         </Form>
