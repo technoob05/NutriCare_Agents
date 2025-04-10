@@ -25,6 +25,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from '@/hooks/use-mobile'; //Check Mobile
 
 interface MenuItem {
     name: string;
@@ -149,6 +150,13 @@ const daysOfWeek: (keyof WeeklyMenuData)[] = [
 
 export function InteractiveMenu({ menuData }: InteractiveMenuProps) {
     const { menu, menuType, feedbackRequest } = menuData;
+    const isMobile = useIsMobile();
+
+    // Dynamically calculate max height
+    const calculateMaxHeight = () => {
+        const baseHeight = isMobile ? 50 : 300; // Reduced base height for mobile
+        return `calc(100vh - ${baseHeight}px)`;
+    };
 
     if (!menu) {
         return (
@@ -227,7 +235,9 @@ export function InteractiveMenu({ menuData }: InteractiveMenuProps) {
                     <CardTitle>Daily Menu</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {renderDayMeals(dailyMenu)}
+                    <ScrollArea className={ `max-h-[${calculateMaxHeight()}]` }>
+                        {renderDayMeals(dailyMenu)}
+                    </ScrollArea>
                 </CardContent>
             </Card>
 
