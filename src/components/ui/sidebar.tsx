@@ -36,7 +36,7 @@ export function Sidebar() {
           onClick={toggleSidebar}
           variant="outline"
           size="icon"
-          className="md:hidden fixed top-2 left-2 z-50"
+          className="md:hidden fixed top-12 left-2 z-30"
           aria-label="Toggle Sidebar"
         >
           <Menu className="h-4 w-4" />
@@ -87,3 +87,4 @@ export function Sidebar() {
     </>
   );
 }
+
