@@ -20,6 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, Info, AlertCircle } from 'lucide-react'; // More icons
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input"
+import {motion} from 'framer-motion'; // animation
+import { useIsMobile } from '@/hooks/use-mobile'; //Check Mobile
 
 interface ChatMessage {
     id: number;
@@ -36,7 +38,7 @@ const HomePage = () => {
     const [feedback, setFeedback] = useState<string>('');
     const [menuModifications, setMenuModifications] = useState<any>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-        { id: 0, text: "Welcome! Share your preferences and let's plan your meal.", type: "system" }
+        { id: 0, text: "Chào bạn! Tôi sẽ giúp bạn tạo thực đơn ăn uống lành mạnh. Bạn muốn bắt đầu bằng cách nào?", type: "system" }
     ]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ const HomePage = () => {
     const [isListening, setIsListening] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isFeedbackListening, setIsFeedbackListening] = useState(false);
-
+    const isMobile = useIsMobile();
     const recognition = useRef<SpeechRecognition | null>(null);
     const feedbackRecognition = useRef<SpeechRecognition | null>(null);
     const synth = useRef(window.speechSynthesis);
@@ -247,7 +249,7 @@ const HomePage = () => {
         setPreferences(e.target.value);
     };
 
-    const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const handleFeedbackChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFeedback(e.target.value);
     };
 
@@ -330,6 +332,11 @@ const HomePage = () => {
         }
     }, [menuResponseData, feedback]);
 
+    const handleQuickReply = (reply: string) => {
+        setPreferences(reply);
+        generateMenu();
+    };
+
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -370,6 +377,18 @@ const HomePage = () => {
                                 {isLoading ? 'Generating...' : 'Generate Menu' }
                             </Button>
                         </div>
+                         {/* Quick Reply Buttons */}
+                         <div className="flex flex-wrap gap-2 mt-2">
+                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Gợi ý bữa sáng")}>
+                                   Gợi ý bữa sáng
+                              </Button>
+                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Thực phẩm ít calo")}>
+                                   Thực phẩm ít calo
+                              </Button>
+                              <Button size="xs" variant="outline" onClick={() => handleQuickReply("Món chay")}>
+                                   Món chay
+                              </Button>
+                         </div>
                     </CardContent>
                 </Card>
 
