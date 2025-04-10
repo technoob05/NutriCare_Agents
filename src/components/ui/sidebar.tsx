@@ -1,20 +1,31 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2 } from 'lucide-react'; // Updated icons
+import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2, FileUp, Link } from 'lucide-react'; // Updated icons
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
 interface ChatHistoryItem {
     id: number;
     title: string;
+    preferences: string;
 }
 
 export function Sidebar() {
     const [isOpen, setIsOpen] = useState(true);
     const isMobile = useIsMobile();
     const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
+    const [newChatTitle, setNewChatTitle] = useState<string>('New Chat');
+    const [preferences, setPreferences] = useState<string>('');
+    const { toast } = useToast();
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [pastedLink, setPastedLink] = useState<string>('');
 
     useEffect(() => {
         if (isMobile) {
@@ -36,7 +47,6 @@ export function Sidebar() {
         setChatHistory(newHistory);
     };
 
-
     const toggleSidebar = useCallback(() => {
         setIsOpen((prev) => !prev);
     }, []);
@@ -44,9 +54,12 @@ export function Sidebar() {
     const handleNewChat = () => {
         const newChat: ChatHistoryItem = {
             id: Date.now(),
-            title: 'New Chat'
+            title: newChatTitle || 'New Chat',
+            preferences: preferences
         };
         saveChatHistory([newChat, ...chatHistory]);
+        setNewChatTitle('New Chat');
+        setPreferences('');
         // TODO: Navigate to the new chat
     };
 
@@ -54,6 +67,28 @@ export function Sidebar() {
         localStorage.removeItem('chatHistory');
         setChatHistory([]);
     };
+
+    // File Upload Handlers
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            toast({
+                title: "File Selected",
+                description: `File ${file.name} selected for RAG.`,
+            });
+        }
+    };
+
+    const handleLinkPaste = () => {
+        if (pastedLink) {
+            toast({
+                title: "Link Added",
+                description: `Link ${pastedLink} added for RAG.`,
+            });
+        }
+    };
+
 
     return (
         <>
@@ -63,7 +98,7 @@ export function Sidebar() {
                     onClick={toggleSidebar}
                     variant="outline"
                     size="icon"
-                    className={`md:hidden fixed top-2 left-2 z-30 ${isOpen ? '' : ''} transition-transform`}
+                    className={`md:hidden fixed top-2 left-2 z-50 ${isOpen ? '' : ''} transition-transform`}
                     aria-label="Toggle Sidebar"
                 >
                     {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -78,10 +113,74 @@ export function Sidebar() {
                     <h1 className="text-xl font-semibold mb-4 dark:text-white flex items-center">
                         <Utensils className="h-6 w-6 mr-2 text-primary" /> Viet Menu AI
                     </h1>
-                    <Button className="w-full justify-start gap-2" variant="secondary" onClick={handleNewChat}>
-                        <Plus className="h-4 w-4" /> New Chat
-                    </Button>
+                    <div className="space-y-2">
+                        <Input
+                            type="text"
+                            placeholder="Chat Title"
+                            value={newChatTitle}
+                            onChange={(e) => setNewChatTitle(e.target.value)}
+                            className="w-full text-sm"
+                        />
+                        <Textarea
+                            placeholder="Preferences for new chat"
+                            value={preferences}
+                            onChange={(e) => setPreferences(e.target.value)}
+                            className="w-full text-sm resize-none"
+                            rows={2}
+                        />
+                        <Button className="w-full justify-start gap-2" variant="secondary" onClick={handleNewChat}>
+                            <Plus className="h-4 w-4" /> New Chat
+                        </Button>
+                    </div>
                 </div>
+
+                {/* RAG Input Section */}
+                <div className="mb-4">
+                    <h2 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Add Context</h2>
+                    <div className="space-y-2">
+                        <div>
+                            <Input
+                                type="file"
+                                accept=".txt,.pdf,.docx"
+                                onChange={handleFileSelect}
+                                ref={fileInputRef}
+                                className="hidden"
+                                id="file-upload"
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-start gap-2"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <FileUp className="h-4 w-4" /> Upload File
+                            </Button>
+                            {selectedFile && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {selectedFile.name}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Input
+                                type="url"
+                                placeholder="Paste Link"
+                                value={pastedLink}
+                                onChange={(e) => setPastedLink(e.target.value)}
+                                className="flex-grow text-sm"
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleLinkPaste}
+                                className="shrink-0"
+                            >
+                                <Link className="h-4 w-4" /> Add
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
 
                 <div className="mb-6 flex-grow overflow-y-auto">
                     <h2 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Recent Chats</h2>

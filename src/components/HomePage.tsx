@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, Info, AlertCircle } from 'lucide-react'; // More icons
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input"
 
 interface ChatMessage {
     id: number;
@@ -453,11 +454,10 @@ const HomePage = () => {
                            {menuResponseData?.menu && (
                                <div className="flex items-center gap-2 w-full">
                                     <div className="relative flex-grow">
-                                         <Textarea
+                                         <Input
                                               placeholder={menuModifications ? "Menu modified. Generate new or clear..." : "Share your feedback..."}
                                               value={feedback}
                                               onChange={handleFeedbackChange}
-                                              rows={1}
                                               className="flex-grow resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 pr-10"
                                               disabled={isLoading || !!menuModifications}
                                               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isLoading && feedback.trim() && !menuModifications) { e.preventDefault(); suggestModifications(); } }} />
