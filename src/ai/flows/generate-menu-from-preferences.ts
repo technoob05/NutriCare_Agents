@@ -78,7 +78,7 @@ URL: {{{url}}}
 Snippet: {{{snippet}}}
 {{/each}}
 
-Format the menu as a JSON object.  For each meal (breakfast, lunch, dinner, etc), include a list of dishes with their names, ingredients, preparation instructions, and estimated cost.
+Format the menu as a JSON object.  The menu must include at least one meal with a dish. For each meal (breakfast, lunch, dinner, etc), include a list of dishes with their names, ingredients, preparation instructions, and estimated cost.
 Also include a request for feedback on the generated menu.
 `,
 });
