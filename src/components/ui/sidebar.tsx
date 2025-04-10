@@ -2,12 +2,22 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2, FileUp, Link } from 'lucide-react'; // Updated icons
+import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2, FileUp, Link } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+} from "@/components/ui/dialog"
+import { HealthInformationForm } from '@/components/HealthInformationForm';
 
 interface ChatHistoryItem {
     id: number;
@@ -22,6 +32,7 @@ export function Sidebar() {
     const [newChatTitle, setNewChatTitle] = useState<string>('New Chat');
     const [preferences, setPreferences] = useState<string>('');
     const { toast } = useToast();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -199,9 +210,23 @@ export function Sidebar() {
                     <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
                         <History className="h-4 w-4" /> Activity
                     </Button>
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <Settings className="h-4 w-4" /> Settings
-                    </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
+                                <Settings className="h-4 w-4" /> Settings
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Health Information</DialogTitle>
+                                <DialogDescription>
+                                    Enter your health information to get personalized menu suggestions.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <HealthInformationForm />
+                            <DialogClose>Close</DialogClose>
+                        </DialogContent>
+                    </Dialog>
                     <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
                         <HelpCircle className="h-4 w-4" /> Help &amp; Support
                     </Button>
