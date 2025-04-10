@@ -4,7 +4,7 @@
  *
  * - generateMenuFromPreferences - A function that generates a menu based on preferences.
  * - GenerateMenuFromPreferencesInput - The input type for the generateMenuFromPreferences function.
- * - GenerateMenuFromPreferencesOutput - The return type for the generateMenuFromPreferences function.
+ * - GenerateMenuFromPreferencesOutput - The return type for the GenerateMenuFromPreferences function.
  */
 
 import {ai} from '@/ai/ai-instance';
