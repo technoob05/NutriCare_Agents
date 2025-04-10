@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -17,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -33,42 +34,66 @@ const formSchema = z.object({
     weight: z.number().min(1, {
         message: "Weight must be at least 1.",
     }),
+    gender: z.string().optional(), // Added gender
+    activityLevel: z.string().optional(), // More detailed activity level
     allergies: z.string().optional(),
     dietaryRestrictions: z.string().optional(),
     medicalConditions: z.string().optional(),
-    activityLevel: z.string().optional(),
+    preferences: z.string().optional(), // Added preferences
+    goals: z.string().optional(), // Added goals
 });
 
+type HealthInformationFormValues = z.infer<typeof formSchema>;
+
+function Fieldset({ children }: { children: React.ReactNode }) {
+    return (
+        <Card className="mb-6">
+            <CardContent className="grid gap-4">
+                {children}
+            </CardContent>
+        </Card>
+    );
+}
 
 export function HealthInformationForm() {
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<HealthInformationFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
             age: 0,
             height: 0,
             weight: 0,
+            gender: "",
+            activityLevel: "",
             allergies: "",
             dietaryRestrictions: "",
             medicalConditions: "",
-            activityLevel: "",
+            preferences: "",
+            goals: "",
         },
         mode: "onChange",
-    })
+    });
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values)
+    const [currentStep, setCurrentStep] = useState(1);
+
+    const nextStep = () => setCurrentStep(prev => prev + 1);
+    const prevStep = () => setCurrentStep(prev => prev - 1);
+
+    function onSubmit(values: HealthInformationFormValues) {
+        console.log(values);
+        // Handle submission logic here
     }
 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Personal Information</CardTitle>
-                        <CardDescription>Enter your basic personal details.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
+
+                {currentStep === 1 && (
+                    <Fieldset>
+                        <CardHeader>
+                            <CardTitle>Step 1: Personal Information</CardTitle>
+                            <CardDescription>Enter your basic personal details.</CardDescription>
+                        </CardHeader>
                         <FormField
                             control={form.control}
                             name="name"
@@ -98,6 +123,30 @@ export function HealthInformationForm() {
                             />
                             <FormField
                                 control={form.control}
+                                name="gender"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Gender</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Enter your gender" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </Fieldset>
+                )}
+
+                {currentStep === 2 && (
+                    <Fieldset>
+                        <CardHeader>
+                            <CardTitle>Step 2: Physical Attributes</CardTitle>
+                            <CardDescription>Provide your height and weight information.</CardDescription>
+                        </CardHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
                                 name="height"
                                 render={({ field }) => (
                                     <FormItem>
@@ -109,29 +158,51 @@ export function HealthInformationForm() {
                                     </FormItem>
                                 )}
                             />
+                            <FormField
+                                control={form.control}
+                                name="weight"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Weight (kg)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="Enter your weight in kg" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
+                    </Fieldset>
+                )}
+
+                {currentStep === 3 && (
+                    <Fieldset>
+                        <CardHeader>
+                            <CardTitle>Step 3: Lifestyle Information</CardTitle>
+                            <CardDescription>Describe your typical activity level.</CardDescription>
+                        </CardHeader>
                         <FormField
                             control={form.control}
-                            name="weight"
+                            name="activityLevel"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Weight (kg)</FormLabel>
+                                    <FormLabel>Activity Level</FormLabel>
                                     <FormControl>
-                                        <Input type="number" placeholder="Enter your weight in kg" {...field} />
+                                        <Input placeholder="Enter your activity level" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                    </CardContent>
-                </Card>
+                    </Fieldset>
+                )}
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Health Details</CardTitle>
-                        <CardDescription>Provide details about your health and dietary needs.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
+                {currentStep === 4 && (
+                    <Fieldset>
+                        <CardHeader>
+                            <CardTitle>Step 4: Dietary Information</CardTitle>
+                            <CardDescription>Share any allergies, dietary restrictions, and food preferences.</CardDescription>
+                        </CardHeader>
                         <FormField
                             control={form.control}
                             name="allergies"
@@ -160,6 +231,28 @@ export function HealthInformationForm() {
                         />
                         <FormField
                             control={form.control}
+                            name="preferences"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Food Preferences</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="Enter your food preferences" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </Fieldset>
+                )}
+
+                {currentStep === 5 && (
+                    <Fieldset>
+                        <CardHeader>
+                            <CardTitle>Step 5: Medical Details &amp; Goals</CardTitle>
+                            <CardDescription>Provide information about medical conditions and your dietary goals.</CardDescription>
+                        </CardHeader>
+                        <FormField
+                            control={form.control}
                             name="medicalConditions"
                             render={({ field }) => (
                                 <FormItem>
@@ -173,20 +266,37 @@ export function HealthInformationForm() {
                         />
                         <FormField
                             control={form.control}
-                            name="activityLevel"
+                            name="goals"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Activity Level</FormLabel>
+                                    <FormLabel>Dietary Goals</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Enter your activity level" {...field} />
+                                        <Textarea placeholder="Enter your dietary goals" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                    </CardContent>
-                </Card>
-                <Button type="submit">Submit</Button>
+                    </Fieldset>
+                )}
+
+                <div className="flex justify-between">
+                    {currentStep > 1 && (
+                        <Button variant="secondary" onClick={prevStep}>
+                            Previous
+                        </Button>
+                    )}
+                    {currentStep < 5 && (
+                        <Button type="button" onClick={nextStep}>
+                            Next
+                        </Button>
+                    )}
+                    {currentStep === 5 && (
+                        <Button type="submit">
+                            Submit
+                        </Button>
+                    )}
+                </div>
             </form>
         </Form>
     );
