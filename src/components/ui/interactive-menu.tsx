@@ -154,7 +154,7 @@ export function InteractiveMenu({ menuData }: InteractiveMenuProps) {
 
     // Dynamically calculate max height
     const calculateMaxHeight = () => {
-        const baseHeight = isMobile ? 50 : 300; // Reduced base height for mobile
+        const baseHeight = isMobile ? 350 : 300; // Adjust base height for mobile
         return `calc(100vh - ${baseHeight}px)`;
     };
 
@@ -197,7 +197,9 @@ export function InteractiveMenu({ menuData }: InteractiveMenuProps) {
                                     <CardTitle>{day}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    {renderDayMeals(weeklyMenu[day])}
+                                    <ScrollArea className={ `max-h-[${calculateMaxHeight()}]` }>
+                                        {renderDayMeals(weeklyMenu[day])}
+                                    </ScrollArea>
                                 </CardContent>
                             </Card>
                         </TabsContent>
