@@ -385,7 +385,9 @@ const HomePage = () => {
                                     placeholder="e.g., vegetarian, loves spicy food, low carb..."
                                     value={preferences}
                                     onChange={handlePreferenceChange}
-                                    rows={1} />
+                                    rows={1}
+                                    maxLength={200} // Limit preference input length
+                                />
                                 <Button
                                     onClick={handleSpeechRecognition}
                                     disabled={isLoading}
@@ -494,7 +496,7 @@ const HomePage = () => {
                 </ScrollArea>
 
                  {/* Input Area - More Aesthetically Pleasing */}
-                 <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0">
+                 <div className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0">
                       <div className="max-w-full mx-auto flex flex-col md:flex-row gap-2 items-center">
                            {menuResponseData?.menu && (
                                <div className="flex items-center gap-2 w-full">
