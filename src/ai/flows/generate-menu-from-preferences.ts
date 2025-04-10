@@ -122,5 +122,3 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
     return output!;
   }
 );
-
-    
