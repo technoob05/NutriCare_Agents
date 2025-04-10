@@ -97,7 +97,6 @@ Snippet: {{{snippet}}}
 Format the menu as a JSON object.  For each meal (breakfast, lunch, dinner, etc), include a list of dishes with their names, ingredients, preparation instructions, and estimated cost.
 Also include a request for feedback on the generated menu.
 `,
-  tools: [searchRecipes],
 });
 
 const generateMenuFromPreferencesFlow = ai.defineFlow<
@@ -111,7 +110,8 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
   },
   async input => {
     try {
-      const searchResult = await ai.useTool(searchRecipes, {
+      // const searchResult = await ai.useTool(searchRecipes, {  //OLD CODE
+      const searchResult = await googleSearch({
         query: `Vietnamese recipes ${input.preferences}`,
       });
 
