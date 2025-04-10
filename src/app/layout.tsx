@@ -1,6 +1,9 @@
+'use client';
+
 import type {Metadata} from 'next';
 import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
+import {useEffect, useState} from 'react';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,11 +25,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [bodyClassName, setBodyClassName] = useState(
+    `${geistSans.variable} ${geistMono.variable} antialiased`
+  );
+
+  useEffect(() => {
+    setBodyClassName(`${geistSans.variable} ${geistMono.variable} antialiased`);
+  }, []);
+
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={bodyClassName}>
         {children}
       </body>
     </html>
   );
 }
+
