@@ -104,13 +104,14 @@ export function HealthInformationForm() {
                     </CardHeader>
                     <CardContent className="p-4">
                         <ScrollArea className="h-[400px] w-full">
-                            <div className="flex flex-col space-y-2">
+                            {/* Horizontal Navigation */}
+                            <div className="flex flex-row flex-wrap gap-2">
                                 {steps.map((step) => (
                                     <Button
                                         key={step.id}
                                         variant={currentStep === step.id ? "default" : "outline"}
                                         onClick={() => setCurrentStep(step.id)}
-                                        className="justify-start"
+                                        className="justify-center text-sm"
                                     >
                                         {step.name}
                                     </Button>
@@ -345,4 +346,3 @@ export function HealthInformationForm() {
         </div>
     );
 }
-
