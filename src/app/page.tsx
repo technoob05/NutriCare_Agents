@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button" // Corrected path
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Corrected path
-import { Avatar } from "@/components/ui/avatar" // Corrected path
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar } from "@/components/ui/avatar"
 import {
   LogOut,
   MessageSquare,
@@ -12,20 +12,32 @@ import {
   Apple,
   Utensils,
   Brain,
-  ChevronRight
+  ChevronRight,
+  Search,
+  Filter,
+  ArrowRight,
+  Heart,
+  BookOpen,
+  UserCircle
 } from "lucide-react"
-import { MainNav } from "@/components/main-nav" // Corrected path
-import { useToast } from "@/hooks/use-toast" // Corrected path
+import { MainNav } from "@/components/main-nav"
+import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription
-} from "@/components/ui/dialog" // Corrected path
-import { motion, AnimatePresence } from "framer-motion" // Import directly
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog"
+import { motion, AnimatePresence } from "framer-motion"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-// Update the Meal interface to match recommendations.json
+// Cập nhật giao diện Meal để khớp với recommendations.json
 interface Meal {
   name: string
   ingredients: string[]
@@ -34,10 +46,30 @@ interface Meal {
     protein: number
     carbs: number
     fat: number
-    sodium: number
+    sodium: number // Đã thêm sodium
   }
   preparation: string
   price: number
+}
+
+// Các biến thể hoạt ảnh
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5 }
+  }
 }
 
 export default function HomePage() {
@@ -45,199 +77,344 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [meals, setMeals] = useState<Meal[]>([])
-  const { toast } = useToast() // Correct destructuring
+  const { toast } = useToast()
 
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("all")
+  const [favorites, setFavorites] = useState<string[]>([])
 
   useEffect(() => {
     checkAuth()
     loadMeals()
+    // Tải danh sách yêu thích từ localStorage
+    if (typeof window !== 'undefined') {
+      const savedFavorites = localStorage.getItem("favorites")
+      if (savedFavorites) {
+        try {
+          setFavorites(JSON.parse(savedFavorites))
+        } catch (error) {
+          console.error("Lỗi khi phân tích cú pháp mục yêu thích từ localStorage:", error)
+          localStorage.removeItem("favorites") // Xóa dữ liệu không hợp lệ
+        }
+      }
+    }
   }, [])
 
   const checkAuth = () => {
-    // Ensure localStorage is accessed only on the client side
     if (typeof window !== 'undefined') {
-        const currentUser = localStorage.getItem("currentUser")
-        if (!currentUser) {
-          // Use router.push for client-side navigation within Next.js app
-          router.push("/auth/login")
-          return
-        }
+      const currentUser = localStorage.getItem("currentUser")
+      if (!currentUser) {
+        router.push("/auth/login")
+        setIsLoading(false) // Đặt isLoading thành false ngay cả khi chuyển hướng
+        return
+      }
 
-        try {
-          const userData = JSON.parse(currentUser)
-          setUser(userData)
-        } catch (error) {
-          localStorage.removeItem("currentUser")
-          router.push("/auth/login")
-        } finally {
-          setIsLoading(false)
-        }
+      try {
+        const userData = JSON.parse(currentUser)
+        setUser(userData)
+      } catch (error) {
+        console.error("Lỗi khi phân tích cú pháp người dùng từ localStorage:", error)
+        localStorage.removeItem("currentUser")
+        router.push("/auth/login")
+      } finally {
+        setIsLoading(false)
+      }
     } else {
-        // Handle server-side or initial render case if necessary
-        // For this logic, we primarily rely on client-side check
-        setIsLoading(false); // Assume not logged in if localStorage is unavailable initially
+      // Xử lý phía server hoặc môi trường không có window
+      setIsLoading(false)
     }
   }
 
   const loadMeals = async () => {
     try {
-      // Ensure the path is correct for fetching from public folder
+      // Đảm bảo đường dẫn chính xác đến file JSON
       const response = await fetch('/data/recommendations.json')
-      if (!response.ok) throw new Error('Failed to load meals')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
       const data = await response.json()
-      setMeals(data.meals)
+      // Kiểm tra xem data.meals có phải là một mảng không
+      if (Array.isArray(data.meals)) {
+        setMeals(data.meals)
+      } else {
+        console.error('Dữ liệu tải về không chứa mảng meals hợp lệ:', data)
+        throw new Error('Định dạng dữ liệu món ăn không hợp lệ')
+      }
     } catch (error) {
-      console.error('Error loading meals:', error)
-      // Use toast function with appropriate structure
+      console.error('Lỗi khi tải món ăn:', error)
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách món ăn.",
+        description: "Không thể tải danh sách món ăn. Vui lòng thử lại sau.",
         variant: "destructive",
       })
     }
   }
 
+
   const handleLogout = () => {
-     if (typeof window !== 'undefined') {
-        localStorage.removeItem("currentUser")
-        // Use toast function for success message
-        toast({
-            title: "Thông báo",
-            description: "Đăng xuất thành công.",
-            // variant: "default", // Default variant is usually sufficient for success
-        })
-        router.push("/auth/login")
-     }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("currentUser")
+      toast({
+        title: "Thông báo",
+        description: "Đăng xuất thành công.",
+      })
+      router.push("/auth/login")
+    }
   }
+
+  const toggleFavorite = (mealName: string) => {
+    let newFavorites = [...favorites]
+    if (favorites.includes(mealName)) {
+      newFavorites = favorites.filter(name => name !== mealName)
+    } else {
+      newFavorites.push(mealName)
+    }
+    setFavorites(newFavorites)
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem("favorites", JSON.stringify(newFavorites))
+      } catch (error) {
+        console.error("Lỗi khi lưu mục yêu thích vào localStorage:", error)
+        toast({
+          title: "Lỗi",
+          description: "Không thể lưu trạng thái yêu thích.",
+          variant: "destructive",
+        })
+      }
+    }
+
+    toast({
+      title: favorites.includes(mealName) ? "Đã xóa khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích",
+      description: mealName,
+    })
+  }
+
+  // Lọc món ăn dựa trên tìm kiếm và tab
+  const filteredMeals = meals.filter(meal => {
+    // Kiểm tra xem meal và các thuộc tính cần thiết có tồn tại không
+    if (!meal || !meal.name || !Array.isArray(meal.ingredients) || !meal.nutrition) {
+        return false;
+    }
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const matchesSearch = meal.name.toLowerCase().includes(lowerCaseQuery) ||
+      meal.ingredients.some(ing => typeof ing === 'string' && ing.toLowerCase().includes(lowerCaseQuery));
+
+    if (!matchesSearch) return false;
+
+    switch (activeTab) {
+      case "all":
+        return true;
+      case "favorites":
+        // Đảm bảo meal.name là string trước khi kiểm tra includes
+        return typeof meal.name === 'string' && favorites.includes(meal.name);
+      case "highProtein":
+        // Kiểm tra meal.nutrition.protein là number
+        return typeof meal.nutrition.protein === 'number' && meal.nutrition.protein > 20;
+      case "lowCalorie":
+        // Kiểm tra meal.nutrition.calories là number
+        return typeof meal.nutrition.calories === 'number' && meal.nutrition.calories < 500;
+      default:
+        return true; // Mặc định hiển thị nếu tab không khớp
+    }
+  })
+
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Đang tải...</p>
+        {/* Sử dụng Skeleton cho trạng thái tải */}
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex items-center space-x-4 mb-8">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+          </div>
+          <div className="mb-8">
+            <Skeleton className="h-8 w-1/4 mb-4" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[...Array(8)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-full mb-4" />
+                  <Skeleton className="h-10 w-1/3" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
-  // Redirect if loading is done but user is still null (failed auth check)
-  if (!user && typeof window !== 'undefined') {
-     // Check window again to prevent server-side redirect loop if checkAuth runs server-side initially
-     router.push("/auth/login");
-     return ( // Render loading indicator during redirect
-        <div className="min-h-screen flex items-center justify-center bg-background">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-     );
+  // Chuyển hướng nếu không có người dùng (thực hiện trong useEffect nhưng kiểm tra lại ở đây)
+  // Component không nên render nếu không có người dùng, return null để tránh lỗi trước khi chuyển hướng hoàn tất
+  if (!user) {
+     // useEffect đã gọi router.push, chỉ cần không render gì cả
+     return null;
   }
 
-  // Render page only if user is confirmed
-  return user ? (
-    <div className="min-h-screen bg-background">
-      {/* <ToastContainer /> removed as <Toaster/> is in layout.tsx */}
 
-      {/* Enhanced Header */}
-      <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-50">
+  // Chỉ render nội dung khi user đã được xác thực và không còn loading
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header với hiệu ứng Glassmorphism */}
+      <header className="border-b sticky top-0 bg-background/90 backdrop-blur-md z-50 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
             <MainNav />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
+                size="sm"
+                className="hidden md:flex"
                 onClick={() => router.push("/chat")}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Chat với AI
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
+
+              <div className="flex items-center gap-1">
+                <Avatar className="h-8 w-8 border border-primary/10">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {user?.name ? user.name[0].toUpperCase() : '?'}
+                  </div>
+                </Avatar>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Đăng xuất" // Thêm aria-label
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main>
-        {/* Hero Section */}
-        <section className="py-20 px-4 text-center relative overflow-hidden bg-gradient-to-b from-background to-muted/30">
+        {/* Phần Hero với thiết kế trực quan cải tiến */}
+        <section className="py-20 px-4 text-center relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.6 }}
             className="container mx-auto relative z-10"
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500"> {/* Adjusted gradient */}
+            <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
               AI Dinh Dưỡng Thông Minh
+            </Badge>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-purple-500">
+              Dinh dưỡng cá nhân hoá
             </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
               Tối ưu hóa chế độ ăn của bạn với công nghệ AI tiên tiến.
               Nhận gợi ý thực đơn được cá nhân hóa dựa trên nhu cầu của bạn.
             </p>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                size="lg"
-                onClick={() => router.push("/chat")}
-                className="shadow-lg" // Added shadow
-              >
-                Bắt đầu ngay <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </motion.div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="lg"
+                  onClick={() => router.push("/chat")}
+                  className="shadow-lg relative group overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center">
+                    Bắt đầu ngay <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                  <span className="absolute inset-0 bg-gradient-to-r from-primary to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-primary/20 hover:border-primary/30"
+                  onClick={() => {
+                    const element = document.getElementById('recommendations');
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  Khám phá món ăn
+                </Button>
+              </motion.div>
+            </div>
           </motion.div>
 
-          {/* Animated background patterns - subtle */}
+          {/* Các mẫu nền hoạt hình */}
           <div className="absolute inset-0 -z-10 opacity-10">
             <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"></div>
           </div>
         </section>
 
-        {/* Main Content */}
+        {/* Nội dung chính */}
         <div className="container mx-auto px-4 py-12">
-          <div className="grid gap-12"> {/* Increased gap */}
-            {/* Enhanced User Profile */}
+          <div className="grid gap-16">
+            {/* Thẻ Hồ sơ người dùng */}
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              <Card className="overflow-hidden shadow-md">
-                <div className="bg-gradient-to-r from-primary/5 to-purple-500/5 p-6"> {/* Adjusted gradient */}
+              <Card className="overflow-hidden shadow-md border-primary/10">
+                <div className="bg-gradient-to-r from-primary/5 via-purple-500/5 to-background p-8">
                   <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                    <Avatar className="h-20 w-20 ring-4 ring-background shadow-sm">
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-primary text-3xl font-semibold text-primary-foreground">
+                    <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
+                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-500 text-4xl font-semibold text-primary-foreground">
                         {user?.name ? user.name[0].toUpperCase() : '?'}
                       </div>
                     </Avatar>
                     <div className="text-center sm:text-left">
-                      <CardTitle className="text-2xl mb-1">{user?.name || 'Người dùng'}</CardTitle>
+                      <CardTitle className="text-3xl mb-2">{user?.name || 'Người dùng'}</CardTitle>
                       <p className="text-muted-foreground">{user?.email || 'Không có email'}</p>
+                      <div className="mt-4 flex gap-2">
+                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => router.push("/profile")}>
+                          <UserCircle className="mr-1 h-3 w-3" />
+                          Hồ sơ
+                        </Button>
+                        {/* Giả sử có trang cài đặt */}
+                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => router.push("/settings")}>
+                          Cài đặt
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
                 <CardContent className="p-6">
+                  {/* Cập nhật các số liệu thống kê này bằng dữ liệu thực tế nếu có */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { icon: TrendingUp, label: "Thực đơn đã tạo", value: "12" }, // Placeholder values
-                      { icon: Apple, label: "Calories mục tiêu", value: "2000" }, // Placeholder values
-                      { icon: Utensils, label: "Món ăn yêu thích", value: "8" }, // Placeholder values
-                      { icon: Brain, label: "Tương tác AI", value: "24" }, // Placeholder values
+                      { icon: BookOpen, label: "Thực đơn đã tạo", value: "0" }, // Placeholder
+                      { icon: Apple, label: "Calories mục tiêu", value: user?.targetCalories || "N/A" }, // Placeholder
+                      { icon: Heart, label: "Món ăn yêu thích", value: favorites.length.toString() },
+                      { icon: Brain, label: "Tương tác AI", value: "0" }, // Placeholder
                     ].map((stat, i) => (
                       <motion.div
                         key={i}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 + i * 0.1 }}
-                        className="flex flex-col items-center p-4 rounded-lg bg-muted/50 text-center"
+                        className="flex flex-col items-center p-6 rounded-xl bg-muted/30 text-center hover:bg-muted/50 transition-colors"
                       >
-                        <stat.icon className="h-6 w-6 mb-2 text-primary" />
+                        <div className="p-3 rounded-full bg-primary/10 mb-3">
+                          <stat.icon className="h-5 w-5 text-primary" />
+                        </div>
                         <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                        <p className="text-xl font-bold">{stat.value}</p>
+                        <p className="text-2xl font-bold">{stat.value}</p>
                       </motion.div>
                     ))}
                   </div>
@@ -245,201 +422,324 @@ export default function HomePage() {
               </Card>
             </motion.section>
 
-            {/* Enhanced Meal Recommendations */}
+            {/* Gợi ý món ăn với bộ lọc và tìm kiếm cải tiến */}
             <motion.section
+              id="recommendations"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold">Món ăn gợi ý</h2>
-                  <p className="text-muted-foreground mt-1">
-                    Khám phá các món ăn đa dạng và dinh dưỡng được đề xuất cho bạn
-                  </p>
+              <div className="flex flex-col space-y-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
+                  <div>
+                    <h2 className="text-3xl font-bold">Món ăn gợi ý</h2>
+                    <p className="text-muted-foreground mt-1">
+                      Khám phá các món ăn đa dạng và dinh dưỡng được đề xuất cho bạn
+                    </p>
+                  </div>
+                  <Button onClick={() => router.push("/chat")} className="shrink-0">
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Tùy chỉnh thực đơn
+                  </Button>
                 </div>
-                <Button variant="outline" onClick={() => router.push("/chat")}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Tùy chỉnh thực đơn
-                </Button>
-              </div>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"> {/* Added xl column */}
-                {meals.map((meal, i) => (
-                  <motion.div
-                    key={meal.name}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.5 + i * 0.05 }} // Staggered animation
+                {/* Tìm kiếm và Lọc */}
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center mb-4">
+                  <div className="relative flex-grow w-full md:w-auto">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tìm kiếm món ăn hoặc nguyên liệu..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      aria-label="Tìm kiếm món ăn"
+                    />
+                  </div>
+
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    className="w-full md:w-auto"
                   >
-                    <Card className="group relative overflow-hidden h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
-                      {/* Added relative and h-full */}
-                      <CardContent className="p-4 flex-grow flex flex-col"> {/* Added flex-grow */}
-                        <h3 className="text-lg font-semibold mb-3">{meal.name}</h3>
-
-                        {/* Ingredients */}
-                        <div className="mb-4">
-                          <h4 className="text-sm font-medium text-muted-foreground mb-2">Nguyên liệu:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {meal.ingredients.slice(0, 5).map((ingredient, index) => ( // Limit ingredients shown initially
-                              <span
-                                key={index}
-                                className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs"
-                              >
-                                {ingredient}
-                              </span>
-                            ))}
-                            {meal.ingredients.length > 5 && (
-                               <span className="text-xs text-muted-foreground ml-1">...</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Nutrition Info Simplified */}
-                        <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
-                           <div className="flex items-center gap-1"><Apple className="w-3 h-3 text-red-500"/> {meal.nutrition.calories} kcal</div>
-                           <div className="flex items-center gap-1"><Utensils className="w-3 h-3 text-blue-500"/> {meal.nutrition.protein}g P</div>
-                           <div className="flex items-center gap-1"><Brain className="w-3 h-3 text-yellow-500"/> {meal.nutrition.carbs}g C</div>
-                           <div className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-green-500"/> {meal.nutrition.fat}g F</div>
-                        </div>
-
-                        {/* Price and Action */}
-                        <div className="flex items-center justify-between mt-auto pt-4 border-t"> {/* mt-auto pushes to bottom */}
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-bold">{meal.price.toLocaleString()}</span>
-                            <span className="text-sm text-muted-foreground">đ</span>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost" // Changed variant
-                            className="text-primary hover:bg-primary/10"
-                            onClick={() => {
-                              setSelectedMeal(meal)
-                              setShowDetails(true)
-                            }}
-                          >
-                            Chi tiết
-                            <ChevronRight className="ml-1 h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* Hover Info - Removed for simplicity, details in Dialog */}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+                    <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full md:w-auto">
+                      <TabsTrigger value="all">Tất cả</TabsTrigger>
+                      <TabsTrigger value="favorites">Yêu thích</TabsTrigger>
+                      <TabsTrigger value="highProtein">Giàu protein</TabsTrigger>
+                      <TabsTrigger value="lowCalorie">Ít calo</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
               </div>
-            </motion.section> {/* Add missing closing tag */}
+
+              {/* Thông báo không có kết quả */}
+              {filteredMeals.length === 0 && searchQuery && ( // Chỉ hiển thị nếu có tìm kiếm và không có kết quả
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+                    <Filter className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-medium mb-2">Không tìm thấy kết quả</h3>
+                  <p className="text-muted-foreground">Thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setActiveTab('all');
+                    }}
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                </div>
+              )}
+
+              {/* Lưới các thẻ món ăn */}
+              <motion.div
+                className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <AnimatePresence>
+                  {filteredMeals.map((meal) => (
+                    <motion.div
+                      key={meal.name} // Sử dụng tên món ăn làm key
+                      variants={itemVariants}
+                      layout
+                      exit={{ opacity: 0, scale: 0.8 }}
+                    >
+                      <Card className="group relative overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-300 border-primary/10">
+                        {/* Phần đầu thẻ món ăn */}
+                        <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start">
+                          <CardTitle className="text-lg font-semibold">{meal.name}</CardTitle>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 rounded-full ${favorites.includes(meal.name) ? 'text-red-500 hover:bg-red-100' : 'text-muted-foreground hover:bg-accent'}`}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Ngăn sự kiện click vào card
+                              toggleFavorite(meal.name)
+                            }}
+                            aria-label={favorites.includes(meal.name) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                          >
+                            <Heart className={`h-4 w-4 ${favorites.includes(meal.name) ? 'fill-current' : ''}`} />
+                          </Button>
+                        </CardHeader>
+
+                        {/* Nội dung thẻ món ăn */}
+                        <CardContent className="p-4 pt-2 flex-grow flex flex-col">
+                          {/* Huy hiệu dinh dưỡng */}
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-200 border-none">
+                              {meal.nutrition.calories} kcal
+                            </Badge>
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">
+                              {meal.nutrition.protein}g P
+                            </Badge>
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none">
+                              {meal.nutrition.carbs}g C
+                            </Badge>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 border-none">
+                              {meal.nutrition.fat}g F
+                            </Badge>
+                          </div>
+
+                          {/* Nguyên liệu */}
+                          <div className="mb-4">
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Nguyên liệu:</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {meal.ingredients.slice(0, 4).map((ingredient, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-0.5 bg-primary/5 text-primary rounded-full text-xs"
+                                >
+                                  {ingredient}
+                                </span>
+                              ))}
+                              {meal.ingredients.length > 4 && (
+                                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs">
+                                  +{meal.ingredients.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Giá và Hành động */}
+                          <div className="flex items-center justify-between mt-auto pt-4 border-t">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xl font-bold">{meal.price?.toLocaleString() ?? 'N/A'}</span>
+                              <span className="text-sm text-muted-foreground">đ</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="rounded-full"
+                              onClick={() => {
+                                setSelectedMeal(meal)
+                                setShowDetails(true)
+                              }}
+                            >
+                              Chi tiết
+                              <ChevronRight className="ml-1 h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            </motion.section>
           </div>
         </div>
 
-        {/* Meal Details Dialog */}
+        {/* Dialog chi tiết món ăn nâng cao */}
         <Dialog open={showDetails} onOpenChange={setShowDetails}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl p-0">
             {selectedMeal && (
               <>
-                <DialogHeader>
-                  <DialogTitle className="text-2xl">{selectedMeal.name}</DialogTitle>
-                  <DialogDescription>
-                    Chi tiết về món ăn và dinh dưỡng
-                  </DialogDescription>
+                <DialogHeader className="p-6 pb-4 border-b">
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <DialogTitle className="text-2xl mb-1">{selectedMeal.name}</DialogTitle>
+                      <DialogDescription>
+                        Chi tiết về món ăn và dinh dưỡng
+                      </DialogDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-10 w-10 rounded-full flex-shrink-0 ${favorites.includes(selectedMeal.name) ? 'text-red-500 hover:bg-red-100' : 'text-muted-foreground hover:bg-accent'}`}
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(selectedMeal.name);
+                      }}
+                      aria-label={favorites.includes(selectedMeal.name) ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+                    >
+                      <Heart className={`h-5 w-5 ${favorites.includes(selectedMeal.name) ? 'fill-current' : ''}`} />
+                    </Button>
+                  </div>
                 </DialogHeader>
 
-                <div className="grid gap-6 py-4">
-                  {/* Ingredients Section */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Nguyên liệu</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMeal.ingredients.map((ingredient, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-muted text-foreground rounded-md text-sm" // Adjusted style
-                        >
-                          {ingredient}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Nutrition Section */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Thông tin dinh dưỡng</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      <Card className="bg-muted/50">
+                <ScrollArea className="max-h-[65vh] h-auto">
+                  <div className="grid gap-8 p-6">
+                    {/* Thông tin chính - Tóm tắt dinh dưỡng */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      <Card className="bg-muted/30">
                         <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-red-100 text-red-500 mx-auto mb-2">
+                            <Apple className="h-4 w-4" />
+                          </div>
                           <p className="text-sm text-muted-foreground">Calories</p>
                           <p className="text-2xl font-bold">{selectedMeal.nutrition.calories}</p>
                           <p className="text-xs text-muted-foreground">kcal</p>
                         </CardContent>
                       </Card>
-                      <Card className="bg-muted/50">
+                      <Card className="bg-muted/30">
                         <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-500 mx-auto mb-2">
+                            <Utensils className="h-4 w-4" />
+                          </div>
                           <p className="text-sm text-muted-foreground">Protein</p>
                           <p className="text-2xl font-bold">{selectedMeal.nutrition.protein}</p>
                           <p className="text-xs text-muted-foreground">gram</p>
                         </CardContent>
                       </Card>
-                      <Card className="bg-muted/50">
+                      <Card className="bg-muted/30">
                         <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-100 text-amber-500 mx-auto mb-2">
+                            <Brain className="h-4 w-4" />
+                          </div>
                           <p className="text-sm text-muted-foreground">Carbs</p>
                           <p className="text-2xl font-bold">{selectedMeal.nutrition.carbs}</p>
                           <p className="text-xs text-muted-foreground">gram</p>
                         </CardContent>
                       </Card>
-                      <Card className="bg-muted/50">
+                      <Card className="bg-muted/30">
                         <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-500 mx-auto mb-2">
+                            <TrendingUp className="h-4 w-4" />
+                          </div>
                           <p className="text-sm text-muted-foreground">Chất béo</p>
                           <p className="text-2xl font-bold">{selectedMeal.nutrition.fat}</p>
                           <p className="text-xs text-muted-foreground">gram</p>
                         </CardContent>
                       </Card>
-                      <Card className="bg-muted/50">
+                       <Card className="bg-muted/30">
                         <CardContent className="p-4 text-center">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-purple-100 text-purple-500 mx-auto mb-2">
+                            <Filter className="h-4 w-4" /> {/* Icon có thể thay đổi */}
+                          </div>
                           <p className="text-sm text-muted-foreground">Natri</p>
-                          <p className="text-2xl font-bold">{selectedMeal.nutrition.sodium}</p>
+                          {/* Đảm bảo selectedMeal.nutrition.sodium tồn tại */}
+                          <p className="text-2xl font-bold">{selectedMeal.nutrition.sodium ?? 'N/A'}</p>
                           <p className="text-xs text-muted-foreground">mg</p>
                         </CardContent>
                       </Card>
                     </div>
-                  </div>
 
-                  {/* Preparation Section */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Cách chế biến</h3>
-                    <Card className="bg-muted/50">
-                      <CardContent className="p-4">
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed"> {/* Improved readability */}
-                          {selectedMeal.preparation}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Price Section */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                    {/* Phần nguyên liệu */}
                     <div>
-                      <p className="text-sm text-muted-foreground">Giá tham khảo</p>
-                      <p className="text-3xl font-bold">{selectedMeal.price.toLocaleString()}đ</p>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Utensils className="h-5 w-5 mr-2 text-primary" />
+                        Nguyên liệu
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {selectedMeal.ingredients.map((ingredient, idx) => (
+                          <div
+                            key={idx}
+                            className="px-4 py-3 bg-muted/30 text-foreground rounded-lg text-sm flex items-center gap-2"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
+                            <span>{ingredient}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <Button onClick={() => router.push("/chat")} size="lg"> {/* Larger button */}
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Chat với AI về món này
-                    </Button>
+
+                    {/* Phần chế biến */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <BookOpen className="h-5 w-5 mr-2 text-primary" />
+                        Cách chế biến
+                      </h3>
+                      <Card className="bg-muted/30 border-primary/10">
+                        <CardContent className="p-6">
+                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                            {selectedMeal.preparation}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
-                </div>
+                </ScrollArea>
+
+                <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 border-t mt-0">
+                  <div className="text-center sm:text-left">
+                    <p className="text-sm text-muted-foreground">Giá tham khảo</p>
+                    <p className="text-3xl font-bold">{selectedMeal.price?.toLocaleString() ?? 'N/A'}đ</p>
+                  </div>
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className="flex-1 sm:flex-auto"
+                      onClick={() => setShowDetails(false)}
+                    >
+                      Đóng
+                    </Button>
+                    {/* ---- PHẦN ĐƯỢC HOÀN THIỆN ---- */}
+                    <Button
+                      className="flex-1 sm:flex-auto"
+                      onClick={() => router.push(`/chat?meal=${encodeURIComponent(selectedMeal.name)}`)}
+                    >
+                      Chat về món này <MessageSquare className="ml-2 h-4 w-4" />
+                    </Button>
+                     {/* ---- KẾT THÚC PHẦN HOÀN THIỆN ---- */}
+                  </div>
+                </DialogFooter>
               </>
             )}
           </DialogContent>
         </Dialog>
-
       </main>
-
-       {/* Footer */}
-        <footer className="py-6 mt-12 border-t bg-muted/50">
-            <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-                © {new Date().getFullYear()} AI Dinh Dưỡng. All rights reserved.
-            </div>
-        </footer>
     </div>
-  ) : null; // Render null if user is not yet confirmed (avoids brief flash of content before redirect)
+  );
 }

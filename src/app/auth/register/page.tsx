@@ -111,7 +111,7 @@ export default function RegisterPage() {
             <div className="h-8 w-8 rounded-full bg-white/20 p-1 backdrop-blur-sm"> {/* Adjusted bg */}
               <Logo className="text-white"/> {/* Ensure logo is visible */}
             </div>
-             AI Dinh Dưỡng {/* Added App Name */}
+         
           </div>
           <motion.div // Use imported motion
             initial={{ opacity: 0, y: 20 }}
@@ -123,7 +123,7 @@ export default function RegisterPage() {
               <p className="text-lg text-primary-foreground/90"> {/* Adjusted text color */}
                 "Tham gia cùng hàng nghìn người dùng khác để tối ưu hóa chế độ dinh dưỡng của bạn với sự hỗ trợ của AI."
               </p>
-              <footer className="text-sm text-primary-foreground/70">Team NutriAI</footer> {/* Adjusted text color */}
+              <footer className="text-sm text-primary-foreground/70">Team NutriCare Agents</footer> {/* Adjusted text color */}
             </blockquote>
           </motion.div>
         </motion.div>

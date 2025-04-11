@@ -6,7 +6,14 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern, readable font */
 }
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
 
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
 @layer base {
   :root {
     --background: 220 29% 95%; /* Light gray background */

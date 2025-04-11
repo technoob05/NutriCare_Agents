@@ -1,13 +1,13 @@
 'use server';
 /**
  * @fileOverview Generates daily/weekly Vietnamese menus, capturing detailed trace information including reasoning for all steps,
- * focusing on transparency, explainability, and professional output quality (Responsible AI).
+ * focusing on transparency, explainability, and professional output quality (Responsible AI). Includes Google Search grounding and citations.
+ * Uses text-based generation for menu content to avoid complex schema issues and includes fallback for missing reasoning.
  */
 
 import { ai } from '@/ai/ai-instance';
 import { z } from 'genkit';
-// Import the updated function and types from google-search.ts using alias
-import { googleSearch, GroundedSearchResult, GroundingMetadata } from '@/services/google-search';
+import { googleSearch, GroundedSearchResult } from '@/services/google-search'; // Assuming google-search service exists
 import { logger } from 'genkit/logging';
 
 // --- Input Schema (Giữ nguyên) ---
@@ -23,14 +23,20 @@ const MenuItemSchema = z.object({
     ingredients: z.array(z.string()).describe('Danh sách nguyên liệu cần thiết.'),
     preparation: z.string().describe('Hướng dẫn chế biến tóm tắt.'),
     estimatedCost: z.string().optional().describe('Chi phí ước tính (ví dụ: "khoảng 30k", "dưới 50k").'),
-}).describe("Thông tin chi tiết cho một món ăn.");
+    calories: z.number().optional().describe('Lượng calo ước tính.'),
+    protein: z.number().optional().describe('Lượng protein ước tính (gram).'),
+    carbs: z.number().optional().describe('Lượng carbohydrate ước tính (gram).'),
+    fat: z.number().optional().describe('Lượng chất béo ước tính (gram).'),
+    healthBenefits: z.array(z.string()).optional().describe('Lợi ích sức khỏe tiềm năng (ngắn gọn).'),
+}).describe("Thông tin chi tiết cho một món ăn, bao gồm dinh dưỡng và lợi ích.");
+export type MenuItemData = z.infer<typeof MenuItemSchema>; // Export type
 
 const DailyMenuSchema = z.object({
-    breakfast: z.array(MenuItemSchema).optional().describe('Thực đơn bữa sáng.'),
-    lunch: z.array(MenuItemSchema).optional().describe('Thực đơn bữa trưa.'),
-    dinner: z.array(MenuItemSchema).optional().describe('Thực đơn bữa tối.'),
+    breakfast: z.array(MenuItemSchema).describe('Thực đơn bữa sáng (BẮT BUỘC).'),
+    lunch: z.array(MenuItemSchema).describe('Thực đơn bữa trưa (BẮT BUỘC).'),
+    dinner: z.array(MenuItemSchema).describe('Thực đơn bữa tối (BẮT BUỘC).'),
     snacks: z.array(MenuItemSchema).optional().describe('Thực đơn bữa phụ (nếu có).')
-}).describe('Thực đơn chi tiết cho một ngày.');
+}).describe('Thực đơn chi tiết cho một ngày, LUÔN CÓ bữa sáng, trưa, tối.');
 export type DailyMenuData = z.infer<typeof DailyMenuSchema>;
 
 const WeeklyMenuSchema = z.object({
@@ -47,41 +53,39 @@ export type WeeklyMenuData = z.infer<typeof WeeklyMenuSchema>;
 const AnyMenuSchema = z.union([DailyMenuSchema, WeeklyMenuSchema]).describe("Có thể là thực đơn hàng ngày hoặc hàng tuần.");
 export type AnyMenuData = z.infer<typeof AnyMenuSchema>;
 
-
-// --- Trace Schema (Đảm bảo outputData có thể chứa reasoning) ---
+// --- Trace Schema (Giữ nguyên) ---
 const StepTraceSchema = z.object({
     stepName: z.string().describe("Tên của bước xử lý hoặc agent."),
     status: z.enum(['success', 'error', 'skipped']).describe("Trạng thái hoàn thành của bước."),
     inputData: z.any().optional().describe("Dữ liệu đầu vào cho bước này (đã được rút gọn nếu cần)."),
-    // OutputData giờ là một object có thể chứa reasoning và các trường khác
     outputData: z.object({
         reasoning: z.string().optional().describe("Giải thích cho quyết định/hành động của bước này."),
-        // Cho phép các trường khác tùy ý
     }).catchall(z.any()).optional().describe("Dữ liệu đầu ra, bao gồm cả reasoning (nếu có)."),
-    errorDetails: z.string().optional().describe("Chi tiết lỗi nếu bước này gặp sự cố (thường là message từ exception)."),
+    errorDetails: z.string().optional().describe("Chi tiết lỗi nếu bước này gặp sự cố."),
     durationMs: z.number().optional().describe("Thời gian thực hiện bước (ms)."),
 });
 export type StepTrace = z.infer<typeof StepTraceSchema>;
 
-// --- Define Citation Schema for Zod (Moved Before Use) ---
+// --- Citation Schema (Giữ nguyên) ---
 const CitationSchema = z.object({
     title: z.string().optional().describe("Tiêu đề của nguồn trích dẫn."),
     uri: z.string().url().describe("URL của nguồn trích dẫn."),
-}).describe("Thông tin trích dẫn từ kết quả tìm kiếm.");
+}).describe("Thông tin trích dẫn từ kết quả tìm kiếm Google.");
+export type Citation = z.infer<typeof CitationSchema>;
 
-// --- Output Schema (Now uses the defined CitationSchema) ---
+// --- Output Schema (Giữ nguyên) ---
 const GenerateMenuFromPreferencesOutputSchema = z.object({
-    menu: AnyMenuSchema.optional().describe("Thực đơn được tạo ra (daily hoặc weekly). Có thể là undefined nếu bước tạo nội dung lỗi."),
-    feedbackRequest: z.string().optional().describe("Câu hỏi gợi ý người dùng phản hồi (có giá trị fallback nếu LLM lỗi)."),
-    trace: z.array(StepTraceSchema).describe("Trace chi tiết các bước xử lý, bao gồm cả quá trình suy luận (reasoning) cho từng bước trong outputData."), // Nhấn mạnh reasoning ở mọi bước
+    menu: AnyMenuSchema.optional().describe("Thực đơn được tạo ra (sau khi parse từ text)."),
+    feedbackRequest: z.string().optional().describe("Câu hỏi gợi ý người dùng phản hồi."),
+    trace: z.array(StepTraceSchema).describe("Trace chi tiết các bước xử lý."),
     menuType: z.enum(['daily', 'weekly']).describe("Loại thực đơn đã được tạo."),
-    // Add optional citations field to the output
-    citations: z.array(CitationSchema).optional().describe("Danh sách các nguồn trích dẫn được sử dụng từ Google Search (nếu có)."),
+    citations: z.array(CitationSchema).optional().describe("Danh sách các nguồn trích dẫn."),
+    searchSuggestionHtml: z.string().optional().describe("HTML chip Google Search Suggestion."),
 });
 export type GenerateMenuFromPreferencesOutput = z.infer<typeof GenerateMenuFromPreferencesOutputSchema>;
 
 // --- Helper safeStringify (Giữ nguyên) ---
-function safeStringify(data: any, maxLength: number = 1500): string | undefined { // Tăng default max length nhẹ
+function safeStringify(data: any, maxLength: number = 1500): string | undefined {
     if (data === undefined || data === null) return undefined;
     try {
         let str: string;
@@ -89,7 +93,7 @@ function safeStringify(data: any, maxLength: number = 1500): string | undefined 
         else if (typeof data === 'object') {
             const jsonStr = JSON.stringify(data, null, 2);
             if (jsonStr.length <= maxLength) return jsonStr;
-            str = JSON.stringify(data); // Fallback to compact if too long
+            str = JSON.stringify(data); // Fallback to compact if pretty exceeds limit
         } else str = String(data);
         return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
     } catch (e) {
@@ -99,137 +103,299 @@ function safeStringify(data: any, maxLength: number = 1500): string | undefined 
     }
 }
 
-
-// --- "Planning Agent" Prompt (TỐI ƯU REASONING CHI TIẾT HƠN NỮA) ---
+// --- "Planning Agent" Prompt (Giữ nguyên) ---
 const PlanningOutputSchema = z.object({
-    plan: z.string().describe("Kế hoạch ngắn gọn (2-3 câu) tóm tắt cấu trúc thực đơn."),
-    reasoning: z.string().describe("Giải thích **cực kỳ chi tiết, step-by-step** về LÝ DO xây dựng kế hoạch. Phải tham chiếu cụ thể đến sở thích người dùng, kết quả tìm kiếm, và giải thích cách cân bằng các yếu tố (dinh dưỡng, chi phí, sở thích, sự đa dạng, tính khả thi). Phải giải thích cả những lựa chọn thay thế (nếu có) và tại sao chúng không được chọn. Cần có đánh giá sơ bộ về cân bằng dinh dưỡng và tính phù hợp tổng thể.") // Yêu cầu cao hơn
+    plan: z.string().describe("Kế hoạch ngắn gọn."),
+    reasoning: z.string().describe("Giải thích chi tiết, step-by-step."),
 });
 
 const planMenuStructurePrompt = ai.definePrompt(
     {
         name: 'planMenuStructurePrompt',
         input: {
-            // Updated schema to accept search content and citations
             schema: z.object({
                 preferences: z.string(),
                 menuType: z.enum(['daily', 'weekly']),
-                searchContent: z.string().optional().describe("Nội dung tóm tắt từ kết quả tìm kiếm Google."),
-                citations: z.array(CitationSchema).optional().describe("Danh sách các nguồn trích dẫn từ Google Search."),
+                searchContent: z.string().optional(),
+                citations: z.array(CitationSchema).optional(),
             }),
         },
         output: { schema: PlanningOutputSchema },
-        // === PROMPT TĂNG CƯỜNG TỐI ĐA REASONING ===
-        // Updated prompt to use searchContent and citations
         prompt: `Là một Chuyên gia Dinh dưỡng và Lập Kế hoạch Thực đơn **chuyên nghiệp, tỉ mỉ, và có trách nhiệm cao**, hãy tạo ra một kế hoạch thực đơn Việt Nam và giải thích **chi tiết từng bước suy luận (step-by-step reasoning)** của bạn.
 
 **Thông tin đầu vào:**
-*   Sở thích & Yêu cầu người dùng: "{{{preferences}}}" (Phân tích kỹ lưỡng mọi chi tiết, bao gồm cả điều không thích, dị ứng, ngân sách, mục tiêu sức khỏe nếu có).
+*   Sở thích & Yêu cầu người dùng: "{{{preferences}}}" (Phân tích kỹ lưỡng mọi chi tiết).
 *   Loại thực đơn: "{{{menuType}}}"
 *   Thông tin bổ sung từ Google Search (nếu có):
     *   Nội dung tóm tắt: {{#if searchContent}} {{{searchContent}}} {{else}} Không có. {{/if}}
     *   Nguồn tham khảo (Citations): {{#if citations}} {{#each citations}} - Tiêu đề: {{{title}}} (URL: {{{uri}}}) {{/each}} {{else}} Không có. {{/if}}
 
 **Nhiệm vụ:**
-1.  **Phân tích sâu:** Đọc và hiểu rõ **tất cả** yêu cầu, sở thích, hạn chế của người dùng. **Tích hợp thông tin** từ nội dung tìm kiếm và các nguồn tham khảo (citations) nếu chúng liên quan và hữu ích.
-2.  **Suy luận (Reasoning - Quan trọng nhất, yêu cầu chất lượng chuyên nghiệp):**
-    *   Trình bày **chi tiết, logic, step-by-step** quá trình tư duy để xây dựng cấu trúc thực đơn. Sử dụng định dạng rõ ràng (gạch đầu dòng hoặc đoạn văn).
-    *   Với **mỗi quyết định quan trọng** (chọn nhóm món ăn, phân bổ bữa, chọn món cụ thể, cân nhắc dinh dưỡng/chi phí), giải thích **TẠI SAO** bạn đưa ra lựa chọn đó một cách thuyết phục.
+1.  **Phân tích sâu:** Đọc và hiểu rõ **tất cả** yêu cầu của người dùng. **Tích hợp thông tin** từ nội dung tìm kiếm và các nguồn tham khảo (citations) nếu chúng liên quan và hữu ích.
+2.  **Suy luận (Reasoning - Quan trọng nhất):**
+    *   Trình bày **chi tiết, logic, step-by-step** quá trình tư duy để xây dựng cấu trúc thực đơn.
+    *   Với **mỗi quyết định quan trọng**, giải thích **TẠI SAO** bạn đưa ra lựa chọn đó.
     *   **BẮT BUỘC LIÊN KẾT RÕ RÀNG:**
-        *   **Trích dẫn chính xác yêu cầu nào** của người dùng (sở thích, hạn chế, mục tiêu, ngân sách...) dẫn đến quyết định (Ví dụ: "Vì người dùng muốn 'tăng cơ' và 'ít tinh bột', bữa tối sẽ tập trung vào protein nạc như ức gà và nhiều rau xanh, hạn chế cơm trắng.").
-        *   **Chỉ rõ nội dung tìm kiếm hoặc nguồn tham khảo (citation) nào** (nếu dùng) đã cung cấp thông tin hữu ích (Ví dụ: "Dựa trên nội dung tìm kiếm về 'cách chế biến cá hồi ít dầu mỡ' và nguồn tham khảo từ '{{{citations.[0].title}}}' ({{{citations.[0].uri}}}), món cá hồi áp chảo được đề xuất cho bữa tối."). **Phải trích dẫn cụ thể URL khi sử dụng thông tin từ citation.**
-        *   Giải thích cách bạn **cân bằng chuyên nghiệp** các yếu tố: sở thích (thích/không thích), dị ứng, yêu cầu dinh dưỡng (macro/micronutrients), ngân sách, sự đa dạng (tránh lặp lại món quá nhiều), tính khả thi (nguyên liệu dễ kiếm, thời gian chế biến hợp lý), yếu tố mùa vụ, **thông tin từ tìm kiếm**.
-        *   **Phân tích lựa chọn thay thế:** Nếu có nhiều món ăn/cách tiếp cận phù hợp (từ kiến thức nền hoặc từ tìm kiếm), hãy nêu ngắn gọn các lựa chọn đó và giải thích **tại sao phương án được chọn là tối ưu hơn** trong bối cảnh này.
-        *   **Đánh giá dinh dưỡng & phù hợp:** Đưa ra nhận xét chuyên môn ngắn gọn về tính cân bằng dinh dưỡng tổng thể của kế hoạch và mức độ đáp ứng mục tiêu của người dùng.
-    *   Reasoning phải thể hiện **tư duy phản biện, logic chặt chẽ, và kiến thức chuyên môn**, giúp người dùng hoàn toàn tin tưởng vào kế hoạch.
-3.  **Lập Kế hoạch (Plan):** **SAU KHI** hoàn thành reasoning chi tiết, tóm tắt thành một kế hoạch **súc tích, rõ ràng** (3-5 câu) nêu bật cấu trúc, các bữa ăn chính, và điểm nhấn của thực đơn.
-4.  **Định dạng Output:** Chỉ trả lời bằng một đối tượng JSON hợp lệ duy nhất, khớp chính xác với schema: { "plan": "...", "reasoning": "..." }. **TUYỆT ĐỐI KHÔNG** thêm bất kỳ văn bản nào khác.`,
+        *   **Trích dẫn chính xác yêu cầu nào** của người dùng dẫn đến quyết định.
+        *   **Chỉ rõ nội dung tìm kiếm hoặc nguồn tham khảo (citation) nào** (nếu dùng) đã cung cấp thông tin hữu ích (Ví dụ: "Dựa trên nội dung tìm kiếm về 'cách chế biến cá hồi ít dầu mỡ' và nguồn tham khảo từ '{{{citations.[0].title}}}' ({{{citations.[0].uri}}}), món cá hồi áp chảo được đề xuất..."). **Phải trích dẫn cụ thể URL khi sử dụng thông tin từ citation.**
+        *   Giải thích cách bạn **cân bằng chuyên nghiệp** các yếu tố: sở thích, dị ứng, dinh dưỡng, ngân sách, đa dạng, khả thi, **thông tin từ tìm kiếm**. **Đảm bảo kế hoạch LUÔN bao gồm bữa sáng, trưa, và tối.**
+        *   **Phân tích lựa chọn thay thế:** Nếu có nhiều lựa chọn, giải thích tại sao phương án được chọn là tối ưu.
+        *   **Đánh giá dinh dưỡng & phù hợp:** Nhận xét ngắn gọn về tính cân bằng và phù hợp. **Khuyến khích đề xuất các món ăn có thông tin dinh dưỡng rõ ràng nếu có thể.**
+    *   Reasoning phải thể hiện **tư duy phản biện, logic chặt chẽ, và kiến thức chuyên môn**.
+3.  **Lập Kế hoạch (Plan):** **SAU KHI** hoàn thành reasoning, tóm tắt thành kế hoạch **súc tích, rõ ràng**. Kế hoạch phải **ghi rõ** sẽ bao gồm bữa sáng, trưa, tối (và bữa phụ nếu có) cho mỗi ngày (nếu là weekly).
+4.  **Định dạng Output:** Chỉ trả lời bằng JSON hợp lệ: { "plan": "...", "reasoning": "..." }. **KHÔNG** thêm văn bản nào khác.`,
     }
 );
 
-// --- Input Schemas for Content Prompts (Update with searchContent and citations) ---
-const BaseContentInputSchema = z.object({
+// --- Input Schema for Content Prompt (Giữ nguyên Base, thêm menuType) ---
+const GenerateMenuContentInputSchema = z.object({
     preferences: z.string(),
     menuPlan: z.string(),
+    menuType: z.enum(['daily', 'weekly']), // Thêm menuType vào đây
     searchContent: z.string().optional(),
     citations: z.array(CitationSchema).optional(),
 });
+type GenerateMenuContentInput = z.infer<typeof GenerateMenuContentInputSchema>;
 
-const GenerateDailyMenuContentInputSchema = BaseContentInputSchema.extend({
-    menuType: z.literal('daily'),
+// +++ NEW: Output Schema for Content Prompt (Text-based) +++
+const MenuContentStringOutputSchema = z.object({
+    menuContentString: z.string().describe(
+        "Nội dung chi tiết của thực đơn dưới dạng văn bản có cấu trúc rõ ràng (sử dụng Markdown). KHÔNG phải là JSON lồng nhau."
+    ),
+    reasoning: z.string().describe("Giải thích ngắn gọn về việc tuân thủ kế hoạch và nỗ lực cung cấp thông tin dinh dưỡng.")
 });
-type GenerateDailyMenuContentInput = z.infer<typeof GenerateDailyMenuContentInputSchema>;
 
-const GenerateWeeklyMenuContentInputSchema = BaseContentInputSchema.extend({
-    menuType: z.literal('weekly'),
-});
-type GenerateWeeklyMenuContentInput = z.infer<typeof GenerateWeeklyMenuContentInputSchema>;
-
-
-// --- "Content Writing Agent" Prompts (THÊM YÊU CẦU REASONING NGẮN) ---
-const MenuContentOutputSchema = z.object({
-    menu: AnyMenuSchema.describe("Đối tượng JSON chứa thực đơn chi tiết."),
-    reasoning: z.string().describe("Giải thích ngắn gọn về việc tuân thủ kế hoạch khi tạo menu."),
-});
-const DailyMenuContentOutputSchema = z.object({ menu: DailyMenuSchema, reasoning: z.string() });
-const WeeklyMenuContentOutputSchema = z.object({ menu: WeeklyMenuSchema, reasoning: z.string() });
-
-const generateMenuContentPrompt = ai.definePrompt({ // For Daily
-    name: 'generateDailyMenuContentPrompt',
-    input: { schema: GenerateDailyMenuContentInputSchema },
-    output: { schema: DailyMenuContentOutputSchema }, // Schema output mới
-    prompt: `Là một AI chuyên tạo nội dung thực đơn Việt Nam, hãy tạo thực đơn chi tiết cho **một ngày** dựa **CHÍNH XÁC** theo kế hoạch được cung cấp, có tham khảo thông tin tìm kiếm nếu cần.
+// +++ UPDATED: Content Writing Prompt (Text-based Output with Stronger JSON Emphasis) +++
+const generateMenuContentPrompt = ai.definePrompt({
+    name: 'generateMenuContentPrompt', // Dùng chung cho daily/weekly
+    input: { schema: GenerateMenuContentInputSchema }, // Sử dụng schema input đã cập nhật
+    output: { schema: MenuContentStringOutputSchema }, // Sử dụng schema output mới (text-based)
+    prompt: `Là một AI chuyên tạo nội dung thực đơn Việt Nam, hãy tạo nội dung chi tiết cho thực đơn {{{menuType}}} dựa **CHÍNH XÁC** theo kế hoạch được cung cấp, có tham khảo thông tin tìm kiếm nếu cần.
 **Thông tin:**
 *   Sở thích người dùng: {{{preferences}}}
 *   Loại thực đơn: {{{menuType}}}
-*   **Kế hoạch BẮT BUỘC phải theo:** {{{menuPlan}}}
+*   **Kế hoạch BẮT BUỘC phải theo:** {{{menuPlan}}} (Kế hoạch này PHẢI bao gồm bữa sáng, trưa, tối cho mỗi ngày).
 *   Thông tin bổ sung từ Google Search (tham khảo nếu cần):
     *   Nội dung tóm tắt: {{#if searchContent}} {{{searchContent}}} {{else}} Không có. {{/if}}
     *   Nguồn tham khảo (Citations): {{#if citations}} {{#each citations}} - {{{title}}} ({{{uri}}}) {{/each}} {{else}} Không có. {{/if}}
 **Nhiệm vụ:**
-1.  Tạo các mục thực đơn chi tiết (tên món, nguyên liệu, cách làm tóm tắt, chi phí ước tính) cho các bữa ăn trong ngày, **TUÂN THỦ TUYỆT ĐỐI** kế hoạch đã cho. Có thể sử dụng thông tin tìm kiếm để làm phong phú chi tiết món ăn (ví dụ: cách chế biến cụ thể, mẹo nhỏ) nhưng phải bám sát kế hoạch tổng thể.
-2.  Cung cấp một câu **reasoning ngắn gọn** (1-2 câu) xác nhận việc tuân thủ kế hoạch.
-**Yêu cầu Output:** Định dạng output **CHÍNH XÁC** là JSON: { "menu": { /* DailyMenuSchema */ }, "reasoning": "Câu giải thích ngắn gọn." }. Phần "menu" phải hợp lệ theo DailyMenuSchema. **KHÔNG** thêm bất kỳ văn bản nào khác.`,
+1.  Tạo nội dung thực đơn chi tiết (tên món, nguyên liệu, cách làm tóm tắt, chi phí ước tính) cho **BẮT BUỘC CÁC BỮA ĂN THEO KẾ HOẠCH** (luôn có sáng, trưa, tối), **TUÂN THỦ TUYỆT ĐỐI** kế hoạch.
+2.  **CỐ GẮNG** cung cấp thông tin dinh dưỡng ước tính (calories, protein, carbs, fat) và lợi ích sức khỏe ngắn gọn (healthBenefits) cho **MỖI MÓN ĂN** nếu bạn biết hoặc có thể suy luận hợp lý. Ghi rõ đây là ước tính.
+3.  Cung cấp một câu **reasoning ngắn gọn** xác nhận việc tuân thủ kế hoạch và nỗ lực cung cấp thông tin dinh dưỡng.
+**Yêu cầu Output:**
+*   Định dạng output **CHÍNH XÁC** là JSON: { "menuContentString": "...", "reasoning": "..." }.
+*   Trong trường "menuContentString", trình bày thực đơn dưới dạng **VĂN BẢN CÓ CẤU TRÚC RÕ RÀNG sử dụng Markdown**.
+    *   **Đối với thực đơn tuần (weekly):** Bắt đầu mỗi ngày bằng tiêu đề cấp 2 (ví dụ: \`## Thứ Hai\`).
+    *   **Đối với mỗi ngày:** Sử dụng tiêu đề cấp 3 cho các bữa ăn (ví dụ: \`### Bữa Sáng\`, \`### Bữa Trưa\`, \`### Bữa Tối\`, \`### Bữa Phụ (nếu có)\`).
+    *   **Đối với mỗi bữa ăn:** Liệt kê các món ăn bằng dấu gạch đầu dòng (\`-\`).
+    *   **Đối với mỗi món ăn:** Trình bày thông tin chi tiết theo định dạng sau (mỗi mục trên một dòng mới, bắt đầu bằng dấu \`*\` hoặc tương tự):
+        *   \`* Tên món:\` [Tên món ăn]
+        *   \`* Nguyên liệu:\` [Liệt kê nguyên liệu, cách nhau bằng dấu phẩy hoặc xuống dòng]
+        *   \`* Cách làm:\` [Hướng dẫn tóm tắt]
+        *   \`* Chi phí:\` [Ước tính, ví dụ: khoảng 30k] (Nếu có)
+        *   \`* Calories:\` [Số calo] (Ước tính, nếu có)
+        *   \`* Protein:\` [Số protein]g (Ước tính, nếu có)
+        *   \`* Carbs:\` [Số carbs]g (Ước tính, nếu có)
+        *   \`* Fat:\` [Số fat]g (Ước tính, nếu có)
+        *   \`* Lợi ích:\` [Liệt kê lợi ích, cách nhau bằng dấu phẩy] (Nếu có)
+*   **QUAN TRỌNG:** Đảm bảo tuân thủ định dạng Markdown này một cách nhất quán trong \`menuContentString\`.
+*   **BẮT BUỘC:** Output phải là một JSON object **duy nhất** và **luôn luôn** chứa cả hai trường \`menuContentString\` (với nội dung Markdown) và \`reasoning\` (với giải thích ngắn gọn).
+*   **KHÔNG** trả về JSON lồng nhau phức tạp trong trường "menuContentString". Chỉ trả về văn bản Markdown được định dạng.
+*   **KHÔNG** thêm bất kỳ văn bản nào khác ngoài cấu trúc JSON { "menuContentString": "...", "reasoning": "..." } được yêu cầu.`,
 });
 
-const generateWeeklyMenuContentPrompt = ai.definePrompt({ // For Weekly
-    name: 'generateWeeklyMenuContentPrompt',
-    input: { schema: GenerateWeeklyMenuContentInputSchema },
-    output: { schema: WeeklyMenuContentOutputSchema }, // Schema output mới
-    prompt: `Là một AI chuyên tạo nội dung thực đơn Việt Nam, hãy tạo thực đơn chi tiết cho **cả tuần** dựa **CHÍNH XÁC** theo kế hoạch được cung cấp, có tham khảo thông tin tìm kiếm nếu cần.
-**Thông tin:**
-*   Sở thích người dùng: {{{preferences}}}
-*   Loại thực đơn: {{{menuType}}}
-*   **Kế hoạch BẮT BUỘC phải theo cho cả tuần:** {{{menuPlan}}}
-*   Thông tin bổ sung từ Google Search (tham khảo nếu cần):
-    *   Nội dung tóm tắt: {{#if searchContent}} {{{searchContent}}} {{else}} Không có. {{/if}}
-    *   Nguồn tham khảo (Citations): {{#if citations}} {{#each citations}} - {{{title}}} ({{{uri}}}) {{/each}} {{else}} Không có. {{/if}}
-**Nhiệm vụ:**
-1.  Tạo các mục thực đơn chi tiết (tên món, nguyên liệu, cách làm tóm tắt, chi phí ước tính) cho mỗi ngày trong tuần, **TUÂN THỦ TUYỆT ĐỐI** kế hoạch đã cho. Có thể sử dụng thông tin tìm kiếm để làm phong phú chi tiết món ăn nhưng phải bám sát kế hoạch tổng thể.
-2.  Cung cấp một câu **reasoning ngắn gọn** (1-2 câu) xác nhận việc tuân thủ kế hoạch.
-**Yêu cầu Output:** Định dạng output **CHÍNH XÁC** là JSON: { "menu": { /* WeeklyMenuSchema */ }, "reasoning": "Câu giải thích ngắn gọn." }. Phần "menu" phải hợp lệ theo WeeklyMenuSchema. **KHÔNG** thêm bất kỳ văn bản nào khác.`,
-});
 
-
-// --- "Feedback Request Agent" Prompt (CHẤP NHẬN NULL & THÊM REASONING) ---
+// --- "Feedback Request Agent" Prompt (Giữ nguyên) ---
 const FeedbackRequestOutputSchema = z.object({
-    // Chấp nhận null cho question
-    question: z.string().nullable().describe("Câu hỏi phản hồi được tạo ra, hoặc null."),
-    reasoning: z.string().describe("Giải thích ngắn gọn tại sao câu hỏi này được tạo/không được tạo."),
+    question: z.string().nullable().describe("Câu hỏi phản hồi hoặc null."),
+    reasoning: z.string().describe("Giải thích ngắn gọn."),
 });
-
 const generateFeedbackRequestPrompt = ai.definePrompt({
     name: 'generateFeedbackRequestPrompt',
     input: { schema: z.object({ menuType: z.enum(['daily', 'weekly']) }) },
-    output: { schema: FeedbackRequestOutputSchema }, // Schema output mới
+    output: { schema: FeedbackRequestOutputSchema },
     prompt: `Nhiệm vụ của bạn là tạo ra một câu hỏi phản hồi ngắn gọn, thân thiện bằng tiếng Việt về thực đơn {{{menuType}}} và giải thích ngắn gọn lý do tạo câu hỏi đó.
 **Nhiệm vụ:**
-1.  Tạo một câu hỏi **ngắn gọn, thân thiện** để hỏi xin phản hồi về thực đơn {{{menuType}}} vừa được tạo. Khuyến khích người dùng đề xuất thay đổi.
-2.  Cung cấp một câu **reasoning ngắn gọn** về mục đích của câu hỏi này (ví dụ: "Câu hỏi này nhằm thu thập phản hồi để cải thiện thực đơn."). Nếu không thể tạo câu hỏi, hãy giải thích ngắn gọn lý do trong phần reasoning và đặt question là null.
-**Yêu cầu Output:** Chỉ trả lời bằng một đối tượng JSON hợp lệ duy nhất, khớp chính xác với schema: { "question": "chuỗi câu hỏi hoặc null", "reasoning": "chuỗi giải thích ngắn gọn" }. **TUYỆT ĐỐI KHÔNG** thêm bất kỳ văn bản nào khác.`,
+1.  Tạo một câu hỏi **ngắn gọn, thân thiện** để hỏi xin phản hồi về thực đơn {{{menuType}}} vừa được tạo.
+2.  Cung cấp một câu **reasoning ngắn gọn** về mục đích của câu hỏi này. Nếu không thể tạo câu hỏi, hãy giải thích ngắn gọn lý do trong phần reasoning và đặt question là null.
+**Yêu cầu Output:** Chỉ trả lời bằng JSON hợp lệ: { "question": "chuỗi câu hỏi hoặc null", "reasoning": "chuỗi giải thích ngắn gọn" }. **KHÔNG** thêm văn bản nào khác.`,
 });
 
-// --- Main Orchestrator Flow (CẬP NHẬT ĐỂ GHI REASONING CHO MỌI BƯỚC) ---
+// +++ NEW: Parser Function (Basic Implementation - Giữ nguyên từ lần sửa trước) +++
+/**
+ * Parses a Markdown-formatted menu string into a Zod schema object.
+ * NOTE: This is a basic parser and might need significant improvements
+ * for robustness against LLM output variations.
+ */
+async function parseMenuTextToZod(
+    menuString: string,
+    menuType: 'daily' | 'weekly'
+): Promise<AnyMenuData> {
+    logger.info(`[Parser] Starting to parse ${menuType} menu text.`);
+    const lines = menuString.trim().split('\n');
+    let currentDay: keyof WeeklyMenuData | 'daily' | null = menuType === 'daily' ? 'daily' : null; // Initialize null for weekly
+    let currentMeal: keyof DailyMenuData | null = null;
+    let currentItem: Partial<MenuItemData> | null = null;
+    const result: any = menuType === 'weekly' ? {} : { breakfast: [], lunch: [], dinner: [], snacks: [] }; // Initialize structure
+
+    const daysMap: { [key: string]: keyof WeeklyMenuData } = {
+        "thứ hai": "Monday", "thứ ba": "Tuesday", "thứ tư": "Wednesday",
+        "thứ năm": "Thursday", "thứ sáu": "Friday", "thứ bảy": "Saturday", "chủ nhật": "Sunday"
+    };
+    const mealsMap: { [key: string]: keyof DailyMenuData } = {
+        "bữa sáng": "breakfast", "bữa trưa": "lunch", "bữa tối": "dinner", "bữa phụ": "snacks"
+    };
+
+    function finalizeCurrentItem() {
+        if (currentItem && currentItem.name && currentDay) {
+            const targetDay = menuType === 'weekly' ? result[currentDay as keyof WeeklyMenuData] : result;
+            // Ensure targetDay and currentMeal are valid before pushing
+            if (targetDay && currentMeal && Array.isArray(targetDay[currentMeal])) {
+                 // Basic validation/defaults before pushing
+                 if (!currentItem.ingredients) currentItem.ingredients = ["Chưa rõ"];
+                 if (!currentItem.preparation) currentItem.preparation = "Chưa rõ";
+
+                 try {
+                     // Validate item against schema before pushing
+                     const validatedItem = MenuItemSchema.parse(currentItem);
+                     targetDay[currentMeal].push(validatedItem);
+                     logger.debug(`[Parser] Added item "${validatedItem.name}" to ${currentDay} - ${currentMeal}`);
+                 } catch (itemValidationError: any) {
+                      logger.warn(`[Parser] Invalid MenuItem data for "${currentItem.name}". Skipping item. Error: ${itemValidationError.message}`, { itemData: currentItem });
+                 }
+            } else {
+                 logger.warn(`[Parser] Could not add item "${currentItem.name}", invalid day/meal structure: Day=${currentDay}, Meal=${currentMeal}`);
+            }
+        }
+        currentItem = null;
+    }
+
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue; // Skip empty lines
+
+        // Match Day (Weekly only)
+        if (menuType === 'weekly') {
+            const dayMatch = trimmedLine.match(/^##\s+(.+)/i);
+            if (dayMatch) {
+                finalizeCurrentItem(); // Finalize previous item before starting new day
+                const dayName = dayMatch[1].trim().toLowerCase();
+                // Find the key in daysMap whose value is included in dayName
+                const mappedDayKey = Object.keys(daysMap).find(key => dayName.includes(key));
+                currentDay = mappedDayKey ? daysMap[mappedDayKey] : null;
+
+                if (currentDay) {
+                    if (!result[currentDay]) { // Initialize day structure only if it doesn't exist
+                         result[currentDay] = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+                    }
+                    currentMeal = null; // Reset meal for new day
+                    logger.debug(`[Parser] Switched to day: ${currentDay}`);
+                } else {
+                     logger.warn(`[Parser] Could not map day: "${dayMatch[1].trim()}"`);
+                     // Keep previous day? Or set to null? Setting to null prevents adding items to wrong day.
+                     currentDay = null;
+                }
+                continue; // Move to next line after processing day header
+            }
+        }
+
+        // Match Meal (Only if currentDay is valid)
+        if (currentDay) {
+            const mealMatch = trimmedLine.match(/^###\s+(.+)/i);
+            if (mealMatch) {
+                finalizeCurrentItem(); // Finalize previous item before starting new meal
+                const mealName = mealMatch[1].trim().toLowerCase();
+                // Find the key in mealsMap whose value is included in mealName
+                const mappedMealKey = Object.keys(mealsMap).find(key => mealName.includes(key));
+                currentMeal = mappedMealKey ? mealsMap[mappedMealKey] : null;
+
+                if (!currentMeal) {
+                     logger.warn(`[Parser] Could not map meal: "${mealMatch[1].trim()}"`);
+                } else {
+                     // Ensure the meal array exists in the target day structure
+                     const targetDay = menuType === 'weekly' ? result[currentDay as keyof WeeklyMenuData] : result;
+                     if (targetDay && !targetDay[currentMeal]) {
+                         targetDay[currentMeal] = []; // Initialize meal array if missing
+                     }
+                     logger.debug(`[Parser] Switched to meal: ${currentMeal}`);
+                }
+                continue; // Move to next line after processing meal header
+            }
+        }
+
+        // Match start of a new Dish Item (Only if currentDay and currentMeal are valid)
+        if (currentDay && currentMeal && trimmedLine.startsWith('-')) {
+            finalizeCurrentItem(); // Finalize previous item
+            currentItem = {}; // Start a new item object
+            // Attempt to extract name directly if on the same line, e.g., "- * Tên món: Phở Bò"
+            const nameMatchInline = trimmedLine.match(/^\-\s*\*\s*Tên món:\s*(.+)/i);
+            if (nameMatchInline) {
+                currentItem.name = nameMatchInline[1].trim();
+            } else {
+                 // Maybe the name is just after the dash, e.g. "- Phở bò"
+                 const nameAfterDash = trimmedLine.match(/^\-\s*(.+)/);
+                 if (nameAfterDash && !nameAfterDash[1].trim().startsWith('*')) { // Avoid capturing '* Tên món:'
+                     currentItem.name = nameAfterDash[1].trim();
+                 }
+            }
+            continue; // Move to next line
+        }
+
+        // Match Dish Item Details (Only if inside an item)
+        if (currentItem) {
+            const detailMatch = trimmedLine.match(/^\*\s*([^:]+):\s*(.+)/i);
+            if (detailMatch) {
+                const key = detailMatch[1].trim().toLowerCase();
+                const value = detailMatch[2].trim();
+
+                try { // Add try-catch for parsing specific fields
+                    if (key.includes("tên món") && !currentItem.name) currentItem.name = value;
+                    else if (key.includes("nguyên liệu")) currentItem.ingredients = value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean); // Split by comma, semicolon, or newline
+                    else if (key.includes("cách làm")) currentItem.preparation = value;
+                    else if (key.includes("chi phí")) currentItem.estimatedCost = value;
+                    else if (key.includes("calories")) currentItem.calories = parseInt(value.replace(/\D/g, ''), 10); // Remove non-digits before parsing
+                    else if (key.includes("protein")) currentItem.protein = parseFloat(value.replace(/[^0-9.]/g, '')); // Remove non-numeric/dot chars
+                    else if (key.includes("carbs")) currentItem.carbs = parseFloat(value.replace(/[^0-9.]/g, ''));
+                    else if (key.includes("fat") || key.includes("chất béo")) currentItem.fat = parseFloat(value.replace(/[^0-9.]/g, ''));
+                    else if (key.includes("lợi ích")) currentItem.healthBenefits = value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+                } catch (parseValueError: any) {
+                     logger.warn(`[Parser] Error parsing value for key "${key}": ${value}. Error: ${parseValueError.message}`);
+                     // Decide how to handle: skip field, set default, etc.
+                     // For now, just log and potentially skip the field.
+                }
+            } else if (currentItem.preparation && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('-')) {
+                 // Append to preparation if it's a continuation line without a known prefix
+                 currentItem.preparation += "\n" + trimmedLine;
+            } else if (!currentItem.name && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('-') && !trimmedLine.startsWith('*')) {
+                 // If name wasn't found yet and line doesn't match other patterns, assume it's the name
+                 currentItem.name = trimmedLine;
+            }
+        }
+    }
+
+    finalizeCurrentItem(); // Finalize the last item
+
+    // Final validation against the appropriate schema
+    try {
+        if (menuType === 'daily') {
+            // Ensure all required meals exist, even if empty
+            if (!result.breakfast) result.breakfast = [];
+            if (!result.lunch) result.lunch = [];
+            if (!result.dinner) result.dinner = [];
+            return DailyMenuSchema.parse(result);
+        } else {
+            // For weekly, Zod schema handles optional days.
+            // We could add logic here to ensure required days exist if needed.
+            return WeeklyMenuSchema.parse(result);
+        }
+    } catch (e: any) {
+        logger.error(`[Parser] Final Zod validation failed: ${e.message}`, { parsedObject: result });
+        throw new Error(`Failed to parse menu text into valid Zod schema: ${e.message}`);
+    }
+}
+
+
+// --- Main Orchestrator Flow (UPDATED Step 3 with Reasoning Fallback) ---
 const generateMenuFromPreferencesFlow = ai.defineFlow<
     typeof GenerateMenuFromPreferencesInputSchema,
     typeof GenerateMenuFromPreferencesOutputSchema
@@ -240,91 +406,80 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         outputSchema: GenerateMenuFromPreferencesOutputSchema,
     },
     async (input) => {
-        logger.info(`[Flow Start] Bắt đầu tạo thực đơn ${input.menuType} với tracing chi tiết`, { preferences: input.preferences });
+        logger.info(`[Flow Start] Bắt đầu tạo thực đơn ${input.menuType} (text-based) với tracing và grounding`, { preferences: input.preferences });
         const traceLog: StepTrace[] = [];
         let startTime: number;
-        let menuContent: AnyMenuData | undefined = undefined;
+        let menuContent: AnyMenuData | undefined = undefined; // Will hold the PARSED menu
         let feedbackRequest: string | undefined = undefined;
         const fallbackFeedbackRequest = `Bạn thấy thực đơn ${input.menuType} này thế nào? Nếu có điểm nào chưa phù hợp hoặc muốn thay đổi, đừng ngần ngại cho tôi biết nhé!`;
         let menuPlan: string = `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`;
-        let planningReasoning: string = `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua.** Thực đơn được tạo trực tiếp dựa trên sở thích chung "${input.preferences}" mà không có phân tích sâu hoặc liên kết cụ thể.`;
-        // Use the new type for the search result
+        let planningReasoning: string = `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua.**`;
         let groundedSearchResult: GroundedSearchResult | undefined = undefined;
+        let extractedCitations: Citation[] = [];
+        let searchSuggestionHtml: string | undefined = undefined;
 
-        // --- Step 1: RAG/Search Agent ---
+        // --- Step 1: RAG/Search Agent (Giữ nguyên) ---
         const searchStepName = "Bước 1: Tìm kiếm Thông tin (RAG)";
         startTime = Date.now();
         let searchInput = `Công thức nấu ăn Việt Nam ${input.preferences} thực đơn ${input.menuType}`;
-        let step1Reasoning = `Thực hiện tìm kiếm trên Google để thu thập các công thức, gợi ý món ăn, hoặc thông tin dinh dưỡng liên quan đến sở thích '${input.preferences}' và loại thực đơn '${input.menuType}'. Kết quả này sẽ làm cơ sở thông tin cho bước lập kế hoạch tiếp theo, giúp tạo ra thực đơn phù hợp và đa dạng hơn.`;
+        let step1Reasoning = `Thực hiện tìm kiếm Google để thu thập thông tin liên quan đến sở thích '${input.preferences}' và loại thực đơn '${input.menuType}'.`;
         let step1Status: StepTrace['status'] = 'success';
         let step1ErrorDetails: string | undefined = undefined;
         let step1OutputData: any = {};
         try {
-             logger.info(`[${searchStepName}] Gọi googleSearch với query: "${searchInput}"`);
-             // Call the updated googleSearch function
-             groundedSearchResult = await googleSearch(searchInput);
-             // Log and store relevant info from the grounded result
-             const citations = groundedSearchResult.metadata?.groundingChunks?.map(chunk => chunk.web) || [];
-             step1OutputData = {
-                 contentSummary: safeStringify(groundedSearchResult.content, 500),
-                 citationCount: citations.length,
-                 citationsPreview: safeStringify(citations.map(c => ({ title: c.title, uri: c.uri })), 500),
-                 searchQueries: groundedSearchResult.metadata?.webSearchQueries,
-             };
-             // Check if the result is empty, which might indicate rate limiting or no results found
-             if (!groundedSearchResult.content && citations.length === 0) {
-                 logger.warn(`[${searchStepName}] Hoàn thành nhưng không có nội dung hoặc trích dẫn. Có thể do giới hạn tỷ lệ hoặc không tìm thấy kết quả.`);
-                 // Modify reasoning slightly for this case, but keep status as success
-                 step1Reasoning = `Tìm kiếm Google được thực hiện cho '${input.preferences}' và '${input.menuType}', nhưng không trả về nội dung hoặc trích dẫn. Điều này có thể do không tìm thấy kết quả liên quan hoặc đã đạt đến giới hạn tỷ lệ API. Kế hoạch sẽ được tạo mà không có thông tin tìm kiếm bổ sung.`;
-             } else {
-                 logger.info(`[${searchStepName}] Thành công: Nhận được nội dung dài ${groundedSearchResult.content.length} ký tự và ${citations.length} trích dẫn.`);
-                 // Keep the original success reasoning if results were found
-                 step1Reasoning = `Thực hiện tìm kiếm trên Google để thu thập các công thức, gợi ý món ăn, hoặc thông tin dinh dưỡng liên quan đến sở thích '${input.preferences}' và loại thực đơn '${input.menuType}'. Kết quả này sẽ làm cơ sở thông tin cho bước lập kế hoạch tiếp theo, giúp tạo ra thực đơn phù hợp và đa dạng hơn. Tìm thấy ${citations.length} nguồn tham khảo.`;
-             }
+            logger.info(`[${searchStepName}] Gọi googleSearch với query: "${searchInput}"`);
+            groundedSearchResult = await googleSearch(searchInput);
+            extractedCitations = groundedSearchResult.metadata?.groundingChunks?.map(chunk => ({
+                title: chunk.web.title,
+                uri: chunk.web.uri
+            })) || [];
+            searchSuggestionHtml = groundedSearchResult.metadata?.searchEntryPoint?.renderedContent;
+            step1OutputData = {
+                contentSummary: safeStringify(groundedSearchResult.content, 500),
+                citationCount: extractedCitations.length,
+                citationsPreview: safeStringify(extractedCitations, 500),
+                searchQueries: groundedSearchResult.metadata?.webSearchQueries,
+                searchSuggestionHtmlProvided: !!searchSuggestionHtml,
+            };
+            if (!groundedSearchResult.content && extractedCitations.length === 0) {
+                logger.warn(`[${searchStepName}] Hoàn thành nhưng không có nội dung hoặc trích dẫn.`);
+                step1Reasoning = `Tìm kiếm Google được thực hiện cho '${input.preferences}' và '${input.menuType}', nhưng không trả về nội dung hoặc trích dẫn.`;
+            } else {
+                logger.info(`[${searchStepName}] Thành công: Nhận được nội dung dài ${groundedSearchResult.content?.length ?? 0} ký tự, ${extractedCitations.length} trích dẫn, và ${searchSuggestionHtml ? 'có' : 'không có'} HTML chip gợi ý.`);
+                step1Reasoning = `Thực hiện tìm kiếm Google cho '${input.preferences}' và '${input.menuType}'. Tìm thấy ${extractedCitations.length} nguồn tham khảo.${searchSuggestionHtml ? ' Chip gợi ý tìm kiếm cũng được cung cấp.' : ''}`;
+            }
         } catch (error: any) {
-             // This catch block now only handles non-rate-limit errors thrown by googleSearch
-             step1Status = 'error';
-             step1ErrorDetails = error.message || String(error);
-             logger.error(`[${searchStepName}] Lỗi nghiêm trọng: Google Search thất bại. ${step1ErrorDetails}`, error);
-             step1Reasoning = `Tìm kiếm Google cho '${input.preferences}' và '${input.menuType}' thất bại do lỗi nghiêm trọng: ${step1ErrorDetails}. Kế hoạch sẽ được tạo mà không có thông tin tìm kiếm bổ sung.`; // Update reasoning for critical failure
+            step1Status = 'error';
+            step1ErrorDetails = error.message || String(error);
+            logger.error(`[${searchStepName}] Lỗi nghiêm trọng: ${step1ErrorDetails}`, error);
+            step1Reasoning = `Tìm kiếm Google cho '${input.preferences}' và '${input.menuType}' thất bại: ${step1ErrorDetails}.`;
         } finally {
-            // Log the final reasoning determined in try/catch
             traceLog.push({
-                 stepName: searchStepName,
-                 status: step1Status, // Will be 'success' even if rate limited, 'error' otherwise
-                 inputData: { query: searchInput },
-                 outputData: { ...step1OutputData, reasoning: step1Reasoning }, // Log the determined reasoning
-                 errorDetails: step1ErrorDetails, // Will be undefined if rate limited or successful
-                 durationMs: Date.now() - startTime
-             });
+                stepName: searchStepName, status: step1Status, inputData: { query: searchInput },
+                outputData: { ...step1OutputData, reasoning: step1Reasoning },
+                errorDetails: step1ErrorDetails, durationMs: Date.now() - startTime
+            });
         }
 
-
-        // --- Step 2: Planning Agent ---
+        // --- Step 2: Planning Agent (Giữ nguyên) ---
         const planningStepName = "Bước 2: Lập Kế hoạch & Suy luận (Reasoning)";
-        startTime = Date.now();
-        // Pass the grounded search result (or parts of it) to the planning step
-        // We'll adjust the planning prompt's input schema next
+        startTime = Date.now()
         let planningInput = {
-            preferences: input.preferences,
-            menuType: input.menuType,
-            // Pass content and citations separately for clarity in the prompt
-            searchContent: groundedSearchResult?.content,
-            citations: groundedSearchResult?.metadata?.groundingChunks?.map(chunk => chunk.web)
+            preferences: input.preferences, menuType: input.menuType,
+            searchContent: groundedSearchResult?.content, citations: extractedCitations
         };
         let step2Status: StepTrace['status'] = 'success';
         let step2ErrorDetails: string | undefined = undefined;
-        let step2OutputData: any = { plan: menuPlan }; // Bắt đầu với plan fallback
-        // planningReasoning đã có giá trị fallback
+        let step2OutputData: any = { plan: menuPlan };
         try {
             logger.info(`[${planningStepName}] Gọi planMenuStructurePrompt.`);
             const planResponse = await planMenuStructurePrompt(planningInput);
             const output = planResponse.output;
-            if (!output || typeof output.plan !== 'string' || typeof output.reasoning !== 'string' || !output.plan.trim() || !output.reasoning.trim()) {
-                 throw new Error("Output từ bước lập kế hoạch không hợp lệ hoặc bị trống.");
+            if (!output?.plan?.trim() || !output?.reasoning?.trim()) {
+                throw new Error("Output từ bước lập kế hoạch không hợp lệ hoặc bị trống.");
             }
             menuPlan = output.plan;
-            planningReasoning = output.reasoning; // Ghi đè reasoning fallback bằng kết quả LLM
+            planningReasoning = output.reasoning;
             step2OutputData = { plan: menuPlan };
             logger.info(`[${planningStepName}] Thành công.`);
             logger.debug(`[${planningStepName}] Reasoning chi tiết:\n${planningReasoning}`);
@@ -334,111 +489,188 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             step2OutputData.errorOutput = safeStringify(error.output || error, 1000);
             logger.error(`[${planningStepName}] Lỗi: ${step2ErrorDetails}`, error);
             logger.warn(`[${planningStepName}] Sử dụng kế hoạch và reasoning dự phòng.`);
-            // planningReasoning giữ giá trị fallback
+            // Reset plan/reasoning to fallback if error occurred
+            menuPlan = `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`;
+            planningReasoning = `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua do lỗi: ${step2ErrorDetails}**`;
         } finally {
-             traceLog.push({
-                stepName: planningStepName,
-                status: step2Status,
+            traceLog.push({
+                stepName: planningStepName, status: step2Status,
                 inputData: safeStringify(planningInput, 1500),
-                // Ghi reasoning (từ LLM hoặc fallback) vào outputData
-                outputData: { ...step2OutputData, reasoning: safeStringify(planningReasoning, 4000) }, // Tăng giới hạn cho reasoning chi tiết
-                errorDetails: step2ErrorDetails,
-                durationMs: Date.now() - startTime,
+                outputData: { ...step2OutputData, reasoning: safeStringify(planningReasoning, 4000) },
+                errorDetails: step2ErrorDetails, durationMs: Date.now() - startTime,
             });
         }
 
-        // --- Step 3: Content Writing Agent ---
-        const writingStepName = `Bước 3: Tạo Nội dung Thực đơn (${input.menuType})`;
+        // --- Step 3: Content Writing & Parsing Agent (UPDATED with Reasoning Fallback) ---
+        const writingStepName = `Bước 3: Tạo & Phân tích Nội dung Thực đơn (${input.menuType})`;
         startTime = Date.now();
-        // Pass relevant search info to content writing step as well
-        let writingInputBase = {
+        let writingInput: GenerateMenuContentInput = {
             preferences: input.preferences,
-            searchContent: groundedSearchResult?.content, // Pass content
-            citations: groundedSearchResult?.metadata?.groundingChunks?.map(chunk => chunk.web), // Pass citations
-            menuPlan: menuPlan
+            searchContent: groundedSearchResult?.content,
+            citations: extractedCitations,
+            menuPlan: menuPlan,
+            menuType: input.menuType
         };
-        let step3Reasoning = `(Reasoning dự phòng) Không thể tạo nội dung thực đơn do lỗi ở bước này hoặc bước trước.`;
+        let step3Reasoning = `(Reasoning dự phòng) Không thể tạo hoặc phân tích nội dung thực đơn.`; // Initial fallback
         let step3Status: StepTrace['status'] = 'success';
         let step3ErrorDetails: string | undefined = undefined;
         let step3OutputData: any = {};
+        let generatedMenuString: string | undefined = undefined;
+
         try {
-            // Chỉ thực hiện nếu bước planning thành công (có menuPlan không phải fallback)
-            if (step2Status === 'success' && menuPlan !== `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`) {
-                logger.info(`[${writingStepName}] Gọi prompt tạo nội dung.`);
-                let menuContentResponse;
-                let inputForPrompt: GenerateDailyMenuContentInput | GenerateWeeklyMenuContentInput;
-                if (input.menuType === 'weekly') {
-                    inputForPrompt = { ...writingInputBase, menuType: 'weekly' };
-                    menuContentResponse = await generateWeeklyMenuContentPrompt(inputForPrompt);
-                } else {
-                    inputForPrompt = { ...writingInputBase, menuType: 'daily' };
-                    menuContentResponse = await generateMenuContentPrompt(inputForPrompt);
+            if (step2Status === 'success' && !menuPlan.startsWith('(Kế hoạch dự phòng)')) {
+                logger.info(`[${writingStepName}] Gọi generateMenuContentPrompt (yêu cầu text output).`);
+                const menuContentResponse = await generateMenuContentPrompt(writingInput);
+                // IMPORTANT: Access the output carefully. It might not conform to the schema.
+                const output = menuContentResponse.output as any; // Cast to any to check fields safely
+
+                // +++ START: Reasoning Fallback Logic +++
+                let llmReasoning = (typeof output?.reasoning === 'string' && output.reasoning.trim())
+                                    ? output.reasoning.trim()
+                                    : null; // Get reasoning safely
+
+                if (!llmReasoning) {
+                    logger.warn(`[${writingStepName}] LLM did not provide 'reasoning' field or it was empty. Using fallback.`);
+                    llmReasoning = "(Reasoning không được cung cấp bởi LLM)"; // Assign fallback
                 }
-                const output = menuContentResponse.output;
-                if (!output || !output.menu || typeof output.reasoning !== 'string') {
-                    throw new Error(`Tạo nội dung trả về output không hợp lệ (thiếu menu hoặc reasoning).`);
+                step3Reasoning = llmReasoning; // Use the (potentially fallback) reasoning for logs/trace
+                // +++ END: Reasoning Fallback Logic +++
+
+                // Validate menuContentString presence AFTER handling reasoning
+                if (typeof output?.menuContentString !== 'string' || !output.menuContentString.trim()) {
+                     // Throw error if menuContentString is missing, as it's essential
+                     throw new Error(`LLM trả về output không hợp lệ hoặc menuContentString trống.`);
                 }
-                const schemaToValidate = input.menuType === 'weekly' ? WeeklyMenuSchema : DailyMenuSchema;
-                const validationResult = schemaToValidate.safeParse(output.menu);
-                if (!validationResult.success) {
-                    logger.error(`[${writingStepName}] Lỗi: Output menu không khớp schema. Lỗi: ${validationResult.error.message}`, { outputReceived: output.menu });
-                    throw new Error(`Output nội dung menu không khớp schema.`);
+
+                generatedMenuString = output.menuContentString;
+                step3OutputData = {
+                    llmReasoning: step3Reasoning, // Log the reasoning used (original or fallback)
+                    rawMenuStringPreview: safeStringify(generatedMenuString, 500)
+                };
+                logger.info(`[${writingStepName}] LLM tạo menu string thành công.`);
+                logger.debug(`[${writingStepName}] Raw menu string:\n${generatedMenuString}`);
+
+                // --- Parsing Sub-step ---
+                logger.info(`[${writingStepName}] Bắt đầu phân tích menu string...`);
+                try {
+                    menuContent = await parseMenuTextToZod(generatedMenuString, input.menuType);
+                    step3OutputData.parsingStatus = 'Success';
+                    step3OutputData.parsedMenuSummary = `Parsed ${Object.keys(menuContent || {}).length} days/meals`;
+                    step3OutputData.parsedMenuDetails = safeStringify(menuContent, 1000);
+                    step3Reasoning += " | Phân tích văn bản thành cấu trúc dữ liệu thành công.";
+                    logger.info(`[${writingStepName}] Phân tích menu string thành Zod object thành công.`);
+                } catch (parseError: any) {
+                    step3Status = 'error';
+                    step3ErrorDetails = `Lỗi phân tích menu string: ${parseError.message}`;
+                    step3OutputData.parsingStatus = 'Failed';
+                    step3OutputData.parsingError = parseError.message;
+                    step3Reasoning += ` | Lỗi khi phân tích văn bản thành cấu trúc dữ liệu: ${parseError.message}`;
+                    logger.error(`[${writingStepName}] ${step3ErrorDetails}`, { rawString: generatedMenuString });
+                    menuContent = undefined;
                 }
-                menuContent = validationResult.data;
-                step3Reasoning = output.reasoning; // Lấy reasoning từ LLM
-                step3OutputData = { menuSummary: `Generated ${Object.keys(menuContent || {}).length} days/meals`, menuDetails: safeStringify(menuContent, 1500) };
-                logger.info(`[${writingStepName}] Thành công.`);
+                // --- End Parsing Sub-step ---
+
             } else {
-                // Bỏ qua bước này nếu bước planning lỗi
                 step3Status = 'skipped';
                 step3Reasoning = `Bước tạo nội dung bị bỏ qua do bước lập kế hoạch trước đó thất bại hoặc sử dụng kế hoạch dự phòng.`;
-                logger.warn(`[${writingStepName}] Bỏ qua bước tạo nội dung do lỗi ở bước trước.`);
+                logger.warn(`[${writingStepName}] Bỏ qua bước tạo nội dung.`);
             }
         } catch (error: any) {
             step3Status = 'error';
             step3ErrorDetails = error.message || String(error);
-            step3OutputData.errorOutput = safeStringify(error.output || error, 1000);
-            logger.error(`[${writingStepName}] Lỗi: ${step3ErrorDetails}`, error);
-            // menuContent sẽ là undefined, step3Reasoning giữ giá trị fallback
+             // Log the raw output if available in the error object for debugging
+             step3OutputData.errorOutput = safeStringify(error.output || error, 1000);
+             logger.error(`[${writingStepName}] Lỗi trong quá trình gọi LLM hoặc xử lý output: ${step3ErrorDetails}`, error);
+             menuContent = undefined;
+             // Ensure reasoning reflects the error state if an LLM call error occurred
+             step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý output ban đầu: ${step3ErrorDetails}`;
         } finally {
             traceLog.push({
                 stepName: writingStepName,
                 status: step3Status,
-                inputData: step3Status !== 'skipped' ? safeStringify(writingInputBase, 1500) : { note: "Step skipped due to previous error." },
-                outputData: { ...step3OutputData, reasoning: step3Reasoning }, // Ghi reasoning
+                inputData: step3Status !== 'skipped' ? safeStringify(writingInput, 1500) : { note: "Step skipped due to previous error." },
+                outputData: { ...step3OutputData, reasoning: step3Reasoning },
                 errorDetails: step3ErrorDetails,
                 durationMs: Date.now() - startTime
             });
         }
 
-        // --- Step 4: Feedback Request Agent ---
+
+        // +++ Step 3.5: Fallback Logic for Missing Meals (Giữ nguyên) +++
+        const fallbackStepName = "Bước 3.5: Đảm bảo Bữa ăn Bắt buộc (Fallback)";
+        startTime = Date.now();
+        let fallbackApplied = false;
+        let fallbackReasoning = "Kiểm tra và đảm bảo các bữa ăn bắt buộc (sáng, trưa, tối) tồn tại sau khi parse.";
+        try {
+            if (step3Status === 'success' && menuContent) {
+                const placeholderMeal: MenuItemData = {
+                    name: "Món ăn chưa được tạo (Fallback)",
+                    ingredients: ["Vui lòng thử lại hoặc kiểm tra lại quá trình tạo/parse."],
+                    preparation: "Không có hướng dẫn.",
+                };
+
+                if (input.menuType === 'daily') {
+                    const dailyMenu = menuContent as DailyMenuData;
+                    if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { dailyMenu.breakfast = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa sáng bị thiếu/trống.`); }
+                    if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { dailyMenu.lunch = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa trưa bị thiếu/trống.`); }
+                    if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { dailyMenu.dinner = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa tối bị thiếu/trống.`); }
+                } else if (input.menuType === 'weekly') {
+                    const weeklyMenu = menuContent as WeeklyMenuData;
+                    const days: (keyof WeeklyMenuData)[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                    for (const day of days) {
+                        if (weeklyMenu[day] && typeof weeklyMenu[day] === 'object') {
+                            const dailyMenu = weeklyMenu[day] as DailyMenuData;
+                            if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { dailyMenu.breakfast = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa sáng ngày ${day} bị thiếu/trống.`); }
+                            if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { dailyMenu.lunch = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa trưa ngày ${day} bị thiếu/trống.`); }
+                            if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { dailyMenu.dinner = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa tối ngày ${day} bị thiếu/trống.`); }
+                        }
+                    }
+                }
+                fallbackReasoning = fallbackApplied
+                    ? "Đã kiểm tra và thêm món ăn giữ chỗ cho các bữa ăn bắt buộc (sáng, trưa, tối) bị thiếu hoặc trống trong cấu trúc menu đã phân tích."
+                    : "Kiểm tra hoàn tất: Tất cả các bữa ăn bắt buộc (sáng, trưa, tối) đều tồn tại trong cấu trúc menu đã phân tích.";
+            } else {
+                fallbackReasoning = "Bỏ qua kiểm tra fallback do bước tạo/phân tích nội dung trước đó thất bại, bị bỏ qua, hoặc không tạo menuContent.";
+                logger.info(`[${fallbackStepName}] Bỏ qua do step3 status là ${step3Status} hoặc menuContent không tồn tại.`);
+            }
+        } catch (error: any) {
+            logger.error(`[${fallbackStepName}] Lỗi không mong muốn khi áp dụng fallback: ${error.message}`, error);
+            fallbackReasoning = `Gặp lỗi khi kiểm tra fallback: ${error.message}`;
+        } finally {
+            traceLog.push({
+                stepName: fallbackStepName, status: 'success',
+                inputData: { menuExists: !!menuContent, step3Status: step3Status },
+                outputData: { reasoning: fallbackReasoning, fallbackApplied: fallbackApplied },
+                durationMs: Date.now() - startTime
+            });
+        }
+
+
+        // --- Step 4: Feedback Request Agent (Giữ nguyên) ---
         const feedbackStepName = "Bước 4: Tạo Câu hỏi Phản hồi";
         startTime = Date.now();
         let feedbackInput = { menuType: input.menuType };
-        let step4Reasoning = `(Reasoning dự phòng) Không thể tạo câu hỏi phản hồi do lỗi.`;
+        let step4Reasoning = `(Reasoning dự phòng) Không thể tạo câu hỏi phản hồi.`;
         let step4Status: StepTrace['status'] = 'success';
         let step4ErrorDetails: string | undefined = undefined;
         let step4OutputData: any = {};
         try {
             logger.info(`[${feedbackStepName}] Gọi generateFeedbackRequestPrompt.`);
             const feedbackResponse = await generateFeedbackRequestPrompt(feedbackInput);
-            const output = feedbackResponse.output; // Output là { question: string | null, reasoning: string }
-
+            const output = feedbackResponse.output;
             if (!output || typeof output.reasoning !== 'string') {
-                 throw new Error("Output từ bước tạo phản hồi không hợp lệ (thiếu reasoning).");
+                throw new Error("Output từ bước tạo phản hồi không hợp lệ.");
             }
-            step4Reasoning = output.reasoning; // Lấy reasoning từ LLM
-
-            if (output.question && typeof output.question === 'string' && output.question.trim()) {
+            step4Reasoning = output.reasoning;
+            if (output.question?.trim()) {
                 feedbackRequest = output.question.trim();
                 step4OutputData = { request: feedbackRequest };
-                logger.info(`[${feedbackStepName}] Thành công: Câu hỏi phản hồi đã được tạo: "${feedbackRequest}"`);
+                logger.info(`[${feedbackStepName}] Thành công: "${feedbackRequest}"`);
             } else {
-                logger.warn(`[${feedbackStepName}] LLM trả về question là null hoặc rỗng. Sử dụng fallback.`);
+                logger.warn(`[${feedbackStepName}] LLM trả về question là null/rỗng. Sử dụng fallback.`);
                 feedbackRequest = fallbackFeedbackRequest;
-                step4OutputData = { request: feedbackRequest, note: "Used fallback question because LLM returned null or empty." };
-                // Vẫn coi là success vì có fallback, nhưng reasoning có thể giải thích thêm
-                step4Reasoning += ` (LLM không tạo được câu hỏi cụ thể, đã sử dụng câu hỏi mặc định).`;
+                step4OutputData = { request: feedbackRequest, note: "Used fallback question." };
+                step4Reasoning += ` (LLM không tạo được câu hỏi, đã dùng fallback).`;
             }
         } catch (error: any) {
             step4Status = 'error';
@@ -447,51 +679,44 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             logger.error(`[${feedbackStepName}] Lỗi: ${step4ErrorDetails}`, error);
             logger.warn(`[${feedbackStepName}] Sử dụng câu hỏi phản hồi dự phòng.`);
             feedbackRequest = fallbackFeedbackRequest;
-            // step4Reasoning giữ giá trị fallback
         } finally {
-             traceLog.push({
-                 stepName: feedbackStepName,
-                 status: step4Status,
-                 inputData: feedbackInput,
-                 outputData: { ...step4OutputData, reasoning: step4Reasoning }, // Ghi reasoning
-                 errorDetails: step4ErrorDetails,
-                 durationMs: Date.now() - startTime
-             });
+            traceLog.push({
+                stepName: feedbackStepName, status: step4Status, inputData: feedbackInput,
+                outputData: { ...step4OutputData, reasoning: step4Reasoning },
+                errorDetails: step4ErrorDetails !== undefined ? step4ErrorDetails : undefined, durationMs: Date.now() - startTime
+            });
         }
 
-
-        // --- Step 5: Formatting Agent ---
+        // --- Step 5: Formatting Agent (Giữ nguyên) ---
         const formattingStepName = "Bước 5: Định dạng Kết quả Cuối cùng";
         startTime = Date.now();
-        let step5Reasoning = `Tổng hợp kết quả từ các bước trước: thực đơn (nếu thành công), câu hỏi phản hồi (từ LLM hoặc fallback), và toàn bộ trace log (bao gồm reasoning của từng bước) vào cấu trúc JSON output cuối cùng để trả về cho client.`;
-        let step5Status: StepTrace['status'] = 'success'; // Giả định bước này không lỗi
+        let step5Reasoning = `Tổng hợp kết quả từ các bước trước: thực đơn (đã parse), câu hỏi phản hồi, trace log, citations, và HTML gợi ý tìm kiếm vào cấu trúc JSON output cuối cùng.`;
+        let step5Status: StepTrace['status'] = 'success';
         let step5InputSummary = {
-             menuGenerated: menuContent !== undefined,
-             feedbackGenerated: feedbackRequest !== fallbackFeedbackRequest,
-             planAvailable: menuPlan !== `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`,
-             planningReasoningAvailable: planningReasoning !== `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua.** Thực đơn được tạo trực tiếp dựa trên sở thích chung "${input.preferences}" mà không có phân tích sâu hoặc liên kết cụ thể.`
-         };
-
+            menuParsedSuccessfully: menuContent !== undefined && step3Status === 'success', // Check if parsing succeeded
+            feedbackGenerated: feedbackRequest !== fallbackFeedbackRequest,
+            planAvailable: !menuPlan.startsWith('(Kế hoạch dự phòng)'),
+            planningReasoningAvailable: !planningReasoning.startsWith('(Reasoning dự phòng)'),
+            citationsAvailable: extractedCitations.length > 0,
+            searchSuggestionHtmlAvailable: !!searchSuggestionHtml
+        };
         traceLog.push({
-             stepName: formattingStepName,
-             status: step5Status,
-             inputData: step5InputSummary,
-             outputData: { reasoning: step5Reasoning, finalOutputStructure: "{ menu, feedbackRequest, trace, menuType }" },
-             durationMs: Date.now() - startTime
-         });
+            stepName: formattingStepName, status: step5Status, inputData: step5InputSummary,
+            outputData: { reasoning: step5Reasoning, finalOutputStructure: "{ menu, feedbackRequest, trace, menuType, citations, searchSuggestionHtml }" },
+            durationMs: Date.now() - startTime
+        });
         logger.info(`[${formattingStepName}] Hoàn tất định dạng kết quả cuối cùng.`);
-
 
         // --- Construct Final Output ---
         const finalOutput: GenerateMenuFromPreferencesOutput = {
-            menu: menuContent,
-            feedbackRequest: feedbackRequest || fallbackFeedbackRequest, // Đảm bảo luôn có giá trị
+            menu: menuContent, // The parsed menu object (or undefined if failed)
+            feedbackRequest: feedbackRequest || fallbackFeedbackRequest,
             trace: traceLog,
             menuType: input.menuType,
-            // Add citations from the search result to the final output
-            citations: groundedSearchResult?.metadata?.groundingChunks?.map(chunk => chunk.web),
+            citations: extractedCitations.length > 0 ? extractedCitations : undefined,
+            searchSuggestionHtml: searchSuggestionHtml,
         };
-        logger.info(`[Flow End] Hoàn thành tạo thực đơn ${input.menuType}. Trả về kết quả, trace, và citations.`);
+        logger.info(`[Flow End] Hoàn thành tạo thực đơn ${input.menuType}. Trả về kết quả (menu ${menuContent ? 'đã parse' : 'parse lỗi/bị bỏ qua'}), trace, ${extractedCitations.length} citations, và ${searchSuggestionHtml ? 'có' : 'không có'} HTML chip gợi ý.`);
         return finalOutput;
     }
 );
@@ -500,12 +725,12 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
 export async function generateMenuFromPreferences(
     input: GenerateMenuFromPreferencesInput
 ): Promise<GenerateMenuFromPreferencesOutput> {
-    // ... (code validation input và gọi flow giữ nguyên) ...
     logger.info("[Entry Point] Received request to generate menu.", input);
     const parseResult = GenerateMenuFromPreferencesInputSchema.safeParse(input);
     if (!parseResult.success) {
         const formattedError = parseResult.error.format();
         logger.error('[Entry Point] Input validation failed.', formattedError);
+        // Consider returning a structured error instead of throwing raw string
         throw new Error(`Input không hợp lệ: ${JSON.stringify(formattedError)}`);
     }
     try {
@@ -513,7 +738,8 @@ export async function generateMenuFromPreferences(
         return result;
     } catch (error: any) {
         const errorMessage = error.message || String(error);
-        logger.error(`[Entry Point] Lỗi nghiêm trọng khi thực thi generateMenuFromPreferencesFlow: ${errorMessage}`, error);
+        logger.error(`[Entry Point] Lỗi nghiêm trọng khi thực thi flow: ${errorMessage}`, error);
+        // Consider returning a structured error or a default error response
         throw new Error(`Tạo thực đơn thất bại: ${errorMessage}`);
     }
 }
