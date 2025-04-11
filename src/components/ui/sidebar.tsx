@@ -1,8 +1,8 @@
-'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import Link from 'next/link'; // Import Link
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2, FileUp, Link } from 'lucide-react';
+import { Plus, MessageSquare, Settings, HelpCircle, History, Utensils, Menu, X, Trash2, FileUp, Link as LinkIcon, Home, Mic } from 'lucide-react'; // Added Home, renamed Link to LinkIcon
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from "@/components/ui/input"
@@ -16,8 +16,10 @@ import {
     DialogTitle,
     DialogTrigger,
     DialogClose,
-} from "@/components/ui/dialog"
-import { HealthInformationForm } from '@/components/HealthInformationForm';
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import { HealthInformationForm } from '@/components/HealthInformationForm'; // Re-import HealthInformationForm
+import { SettingsDialogContent ,SpeechSettings} from '@/components/SettingsDialogContent'; // Import the new component
 
 interface ChatHistoryItem {
     id: number;
@@ -105,137 +107,154 @@ export function Sidebar() {
         <>
             {/* Mobile Toggle Button */}
             {isMobile && (
-                <Button
-                    onClick={toggleSidebar}
-                    variant="outline"
-                    size="icon"
-                    className={`md:hidden fixed top-2 left-2 z-50 transition-transform ${isOpen ? 'translate-x-64' : 'translate-x-0'}`}
-                    aria-label="Toggle Sidebar"
-                >
+                
                     {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                </Button>
+                
             )}
 
             {/* Sidebar */}
-            <div
-                className={`flex flex-col h-full w-64 bg-gray-50 dark:bg-gray-800 p-4 border-r dark:border-gray-700 fixed top-0 left-0 z-40 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:flex md:w-64 md:static`}
-            >
-                <div className="mb-6">
-                    <h1 className="text-xl font-semibold mb-4 dark:text-white flex items-center">
-                        <Utensils className="h-6 w-6 mr-2 text-primary" /> Viet Menu AI
-                    </h1>
-                    <div className="space-y-2">
-                        <Input
-                            type="text"
-                            placeholder="Chat Title"
-                            value={newChatTitle}
-                            onChange={(e) => setNewChatTitle(e.target.value)}
-                            className="w-full text-sm"
-                        />
-                        <Textarea
-                            placeholder="Preferences for new chat"
-                            value={preferences}
-                            onChange={(e) => setPreferences(e.target.value)}
-                            className="w-full text-sm resize-none"
-                            rows={2}
-                        />
-                        <Button className="w-full justify-start gap-2" variant="secondary" onClick={handleNewChat}>
-                            <Plus className="h-4 w-4" /> New Chat
-                        </Button>
-                    </div>
-                </div>
+            
+                
+                    
+                        
+                            Viet Menu AI
+                        
+                        
+                            
+                                
+                                    Chat Title
+                                
+                                
+                                    
+                                
+                                
+                                    Preferences for new chat
+                                
+                                
+                                    
+                                
+                                
+                                    New Chat
+                                
+                            
+                            
+                                <Link href="/" passHref>
+                                   
+                                       Trang chủ
+                                   
+                                </Link>
+                            
+                        
+                    
 
-                {/* RAG Input Section */}
-                <div className="mb-4">
-                    <h2 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Add Context</h2>
-                    <div className="space-y-2">
-                        <div>
-                            <Input
-                                type="file"
-                                accept=".txt,.pdf,.docx"
-                                onChange={handleFileSelect}
-                                ref={fileInputRef}
-                                className="hidden"
-                                id="file-upload"
-                            />
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full justify-start gap-2"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <FileUp className="h-4 w-4" /> Upload File
-                            </Button>
-                            {selectedFile && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    {selectedFile.name}
-                                </p>
-                            )}
-                        </div>
-                        <div className="flex gap-2">
-                            <Input
-                                type="url"
-                                placeholder="Paste Link"
-                                value={pastedLink}
-                                onChange={(e) => setPastedLink(e.target.value)}
-                                className="flex-grow text-sm"
-                            />
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleLinkPaste}
-                                className="shrink-0"
-                            >
-                                <Link className="h-4 w-4" /> Add
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                    {/* RAG Input Section */}
+                    
+                        
+                            Add Context
+                        
+                        
+                            
+                                
+                                    
+                                        Upload File
+                                    
+                                    {selectedFile && (
+                                        
+                                            {selectedFile.name}
+                                        
+                                    )}
+                                
+                                
+                                    
+                                    
+                                        Paste Link
+                                    
+                                    
+                                        
+                                        
+                                            Add
+                                        
+                                    
+                                
+                            
+                        
+                    
 
+                    
+                        
+                            Recent Chats
+                        
+                        
+                            {chatHistory.map((chat) => (
+                                
+                                    
+                                        
+                                            
+                                                {chat.title}
+                                            
+                                        
+                                    
+                                
+                            ))}
+                        
+                    
 
-                <div className="mb-6 flex-grow overflow-y-auto">
-                    <h2 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">Recent Chats</h2>
-                    <ul className="space-y-1">
-                        {chatHistory.map((chat) => (
-                            <li key={chat.id}>
-                                <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm truncate hover:bg-gray-200 dark:hover:bg-gray-700">
-                                    <MessageSquare className="h-4 w-4" /> {chat.title}
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                    
+                        
+                            Activity
+                        
+                        
+                            
+                                Settings
+                            
+                            
+                                
+                                    
+                                        Cài đặt (Settings)
+                                    
+                                    
+                                        Quản lý thông tin sức khỏe và cấu hình AI của bạn.
+                                    
+                                
+                                <Tabs defaultValue="ai-config" className="mt-4">
+                                    
+                                        
+                                            Cấu hình AI
+                                        
+                                        
+                                            Thông tin sức khỏe
+                                        
+                                         
+                                             
+                                                <SettingsDialogContent />
+                                             
+                                        
+                                            
+                                                <HealthInformationForm />
+                                             
+                                        
+                                        
+                                            Speech
+                                        
+                                            
+                                                <SpeechSettings/>
+                                            
+                                    
+                                
+                                
+                                
 
-                <div className="mt-auto space-y-1">
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <History className="h-4 w-4" /> Activity
-                    </Button>
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
-                                <Settings className="h-4 w-4" /> Settings
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                                <DialogTitle>Health Information</DialogTitle>
-                                <DialogDescription>
-                                    Enter your health information to get personalized menu suggestions.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <HealthInformationForm />
-                            <DialogClose>Close</DialogClose>
-                        </DialogContent>
-                    </Dialog>
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <HelpCircle className="h-4 w-4" /> Help &amp; Support
-                    </Button>
-                    <ThemeToggle />
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm hover:bg-red-200 dark:hover:bg-red-700 text-red-600 dark:text-red-400" onClick={clearChatHistory}>
-                        <Trash2 className="h-4 w-4" /> Clear Chat History
-                    </Button>
-                </div>
-            </div>
+                            
+                        
+                        
+                            Help &amp; Support
+                        
+                        
+                            Clear Chat History
+                        
+                    
+                
+            
         </>
     );
 }

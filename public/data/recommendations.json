@@ -1,0 +1,56 @@
+{
+  "meals": [
+    {
+      "name": "Phở Bò Tái Nạm",
+      "ingredients": ["Bánh phở", "Thịt bò tái", "Thịt bò nạm", "Hành tây", "Hành lá", "Ngò gai", "Giá đỗ", "Chanh", "Ớt"],
+      "nutrition": {
+        "calories": 450,
+        "protein": 30,
+        "carbs": 50,
+        "fat": 15,
+        "sodium": 1200
+      },
+      "preparation": "Trụng bánh phở, xếp thịt bò, hành tây, hành lá vào tô. Chan nước dùng nóng hổi. Ăn kèm rau thơm, giá đỗ, chanh, ớt.",
+      "price": 50000
+    },
+    {
+      "name": "Cơm Tấm Sườn Bì Chả",
+      "ingredients": ["Cơm tấm", "Sườn heo cốt lết", "Bì heo", "Chả trứng", "Đồ chua", "Mỡ hành", "Nước mắm chua ngọt"],
+      "nutrition": {
+        "calories": 650,
+        "protein": 35,
+        "carbs": 70,
+        "fat": 25,
+        "sodium": 950
+      },
+      "preparation": "Nướng sườn, hấp chả trứng. Trộn bì. Dọn cơm tấm ra đĩa cùng sườn, bì, chả, đồ chua, mỡ hành. Chan nước mắm.",
+      "price": 45000
+    },
+    {
+      "name": "Bún Chả Hà Nội",
+      "ingredients": ["Bún rối", "Thịt ba chỉ", "Chả viên", "Đu đủ xanh", "Cà rốt", "Rau sống các loại", "Nước mắm pha"],
+      "nutrition": {
+        "calories": 550,
+        "protein": 28,
+        "carbs": 60,
+        "fat": 22,
+        "sodium": 1100
+      },
+      "preparation": "Nướng thịt ba chỉ và chả viên trên than hoa. Pha nước mắm chua ngọt cùng đu đủ, cà rốt thái mỏng. Ăn bún cùng chả, thịt nướng, rau sống và nước chấm.",
+      "price": 40000
+    },
+     {
+      "name": "Gỏi Cuốn Tôm Thịt",
+      "ingredients": ["Bánh tráng", "Bún tươi", "Tôm luộc", "Thịt ba chỉ luộc", "Xà lách", "Rau thơm", "Hẹ", "Tương đen"],
+      "nutrition": {
+        "calories": 150,
+        "protein": 10,
+        "carbs": 20,
+        "fat": 3,
+        "sodium": 300
+      },
+      "preparation": "Trải bánh tráng, xếp rau, bún, tôm, thịt, hẹ. Cuốn chặt tay. Chấm cùng tương đen pha.",
+      "price": 10000
+    }
+  ]
+}
