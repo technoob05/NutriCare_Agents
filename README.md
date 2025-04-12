@@ -13,6 +13,8 @@
 
 ---
 
+![image](https://github.com/user-attachments/assets/daa563a0-1f77-44b9-a463-6883c7dd75e6)
+
 ## Table of Contents
 
 * [Overview](#overview)
@@ -111,6 +113,8 @@ NutriCare Agents exemplifies responsible AI development:
 ---
 
 ## Technology Architecture
+
+![Untitled-2025-03-26-2204](https://github.com/user-attachments/assets/7fca4518-9234-4a93-a87a-51e5ecfa3276)
 
 ### Core Technologies
 
