@@ -32,7 +32,8 @@ import {
     User,
     Bot,
     Search,
-    ClipboardCopy // Added for Copy button
+    ClipboardCopy, // Added for Copy button
+    Download // Added for Download button
 } from 'lucide-react';
 
 // --- AI Flows ---
@@ -45,6 +46,8 @@ import { suggestMenuModificationsBasedOnFeedback } from '@/ai/flows/suggest-menu
 
 // --- Hooks ---
 import { useToast } from "@/hooks/use-toast";
+// TODO: Import your authentication hook/context here
+// import { useAuth } from '@/hooks/use-auth'; // Example
 // import { useIsMobile } from '@/hooks/use-mobile'; // No longer strictly needed for this specific toggle logic
 
 // --- Utils ---
@@ -52,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 // --- Constants ---
 const MAX_PREFERENCE_LENGTH = 250;
-const INITIAL_SYSTEM_MESSAGE = "Chào bạn! Tôi là trợ lý thực đơn AI. Hãy cho tôi biết sở thích ăn uống, mục tiêu dinh dưỡng hoặc chọn gợi ý để bắt đầu nhé.";
+// Removed static initial message, will be set dynamically
 const QUICK_REPLIES = ["Bữa sáng nhanh gọn", "Thực đơn ít calo", "Món chay dễ làm", "Tăng cơ giảm mỡ", "Tiệc cuối tuần"];
 
 // --- Types ---
@@ -67,36 +70,54 @@ interface ChatMessage {
     traceData?: StepTrace[];
     suggestionData?: SuggestMenuModificationsOutput;
     searchSuggestionHtml?: string;
-    exportMarkdown?: string; // Added for export display
+    exportMarkdown?: string;
+    menuData?: GenerateMenuFromPreferencesOutput | null; // Add field to store menu data
 }
 
+// --- Props Interface ---
+interface HomePageProps {
+    chatId?: string | null; // Optional chat ID from URL
+}
+
+
 // --- Component ---
-const HomePage = () => {
+const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId prop
     // --- State Hooks ---
     const [preferences, setPreferences] = useState<string>('');
     const [menuType, setMenuType] = useState<'daily' | 'weekly'>('daily');
     const [menuResponseData, setMenuResponseData] = useState<GenerateMenuFromPreferencesOutput | null>(null);
     const [feedback, setFeedback] = useState<string>('');
     const [menuModifications, setMenuModifications] = useState<SuggestMenuModificationsOutput | null>(null);
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-        { id: Date.now(), text: INITIAL_SYSTEM_MESSAGE, type: "system" }
-    ]);
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]); // Initialize empty, will set initial message in useEffect
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isListeningPreferences, setIsListeningPreferences] = useState(false);
     const [isListeningFeedback, setIsListeningFeedback] = useState(false);
     const [isPreferenceSectionOpen, setIsPreferenceSectionOpen] = useState(true); // Start open
 
     // --- Refs ---
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null); // Keep for potential fallback or other uses
+    const chatScrollAreaRef = useRef<HTMLDivElement>(null); // Ref for the ScrollArea viewport
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const feedbackRecognitionRef = useRef<SpeechRecognition | null>(null);
     const synthRef = useRef<SpeechSynthesis | null>(null);
 
     // --- Custom Hooks ---
     const { toast } = useToast();
+    // const { user } = useAuth(); // Example: Get user data from auth hook
+    const user = { username: "Khách" }; // Placeholder: Replace with actual user data fetching
     // const isMobile = useIsMobile(); // Keep if needed for other responsive logic
 
+
     // --- Effects ---
+
+    // Effect to set initial message based on user
+    useEffect(() => {
+        const initialMessageText = `Chào ${user?.username || 'bạn'}! Tôi là NutriCare Agent, trợ lý thực đơn AI của bạn. Hãy cho tôi biết sở thích ăn uống, mục tiêu dinh dưỡng hoặc chọn gợi ý để bắt đầu nhé.`;
+        // Set initial message only if chat history is empty (prevents overriding loaded history)
+        if (chatHistory.length === 0 && !chatId) { // Also check for chatId to avoid resetting loaded chats
+             setChatHistory([{ id: Date.now(), text: initialMessageText, type: "system" }]);
+        }
+    }, [user, chatHistory.length, chatId, setChatHistory]); // Rerun if user changes or history length becomes 0, Added setChatHistory
 
     // Speech Recognition Setup Effect (Optimized - Unchanged from previous optimization)
     useEffect(() => {
@@ -145,16 +166,28 @@ const HomePage = () => {
         return () => {
             recognitionRef.current?.abort();
             feedbackRecognitionRef.current?.abort();
+            recognitionRef.current?.abort(); // Corrected method name
+            feedbackRecognitionRef.current?.abort(); // Corrected method name
             synthRef.current?.cancel();
         };
-    }, [toast]);
+        // Dependencies: toast, setPreferences, setIsListeningPreferences, setFeedback, setIsListeningFeedback
+    }, [toast, setPreferences, setIsListeningPreferences, setFeedback, setIsListeningFeedback]);
 
-    // Scroll to Bottom Effect (Unchanged)
+    // Scroll to Bottom Effect (MODIFIED)
     useEffect(() => {
-        setTimeout(() => {
-            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-    }, [chatHistory]);
+        const scrollAreaViewport = chatScrollAreaRef.current?.querySelector<HTMLDivElement>(':scope > div'); // Get the direct child div which is the viewport
+        if (scrollAreaViewport) {
+            // Use setTimeout to ensure DOM update completes before scrolling
+            setTimeout(() => {
+                scrollAreaViewport.scrollTop = scrollAreaViewport.scrollHeight;
+            }, 150); // Slightly increased delay might be more reliable than 100ms
+        }
+        // Fallback or keep chatEndRef scrollIntoView if needed for specific cases?
+        // For now, prioritize direct scrollTop manipulation.
+        // setTimeout(() => {
+        //     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // }, 100);
+    }, [chatHistory]); // Dependency remains chatHistory
 
     // Local Storage Effects (Unchanged)
     useEffect(() => {
@@ -201,11 +234,11 @@ const HomePage = () => {
 
     const togglePreferenceSpeech = useCallback(() => {
         toggleSpeech(recognitionRef.current, isListeningPreferences, setIsListeningPreferences, "Sở thích");
-    }, [isListeningPreferences, toggleSpeech]);
+    }, [isListeningPreferences, toggleSpeech, recognitionRef, setIsListeningPreferences]); // Added recognitionRef, setIsListeningPreferences
 
     const toggleFeedbackSpeech = useCallback(() => {
         toggleSpeech(feedbackRecognitionRef.current, isListeningFeedback, setIsListeningFeedback, "Phản hồi");
-    }, [isListeningFeedback, toggleSpeech]);
+    }, [isListeningFeedback, toggleSpeech, feedbackRecognitionRef, setIsListeningFeedback]); // Added feedbackRecognitionRef, setIsListeningFeedback
 
     // --- Core Logic Functions ---
 
@@ -216,7 +249,8 @@ const HomePage = () => {
         traceData?: StepTrace[],
         suggestionData?: SuggestMenuModificationsOutput,
         searchSuggestionHtml?: string,
-        exportMarkdown?: string // Added exportMarkdown parameter
+        exportMarkdown?: string,
+        menuData?: GenerateMenuFromPreferencesOutput | null // Add menuData parameter
     ) => {
         const newMessage: ChatMessage = {
             id: Date.now() + Math.random(),
@@ -225,11 +259,41 @@ const HomePage = () => {
             traceData,
             suggestionData,
             searchSuggestionHtml,
-            exportMarkdown, // Added exportMarkdown field
+            exportMarkdown,
+            menuData, // Store menu data in the message
         };
+
+        // --- Dynamic Title Logic ---
+        // Check if this is the first 'user' message being added to the current chat
+        if (chatId && type === 'user') {
+            const isFirstUserMessage = !chatHistory.some(msg => msg.type === 'user');
+            if (isFirstUserMessage && text) {
+                // Generate a concise title (e.g., first 30 chars)
+                const newTitle = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+                console.log(`Updating title for chat ${chatId} to: "${newTitle}"`);
+
+                // Update the title in the localStorage list
+                const storedListRaw = localStorage.getItem('chatHistoryList');
+                if (storedListRaw) {
+                    try {
+                        let storedList: any[] = JSON.parse(storedListRaw);
+                        const chatIndex = storedList.findIndex(c => c.id.toString() === chatId);
+                        if (chatIndex !== -1) {
+                            storedList[chatIndex].title = newTitle;
+                            localStorage.setItem('chatHistoryList', JSON.stringify(storedList));
+                            // Note: Sidebar won't update immediately without a refresh or shared state.
+                        }
+                    } catch (e) {
+                        console.error("Failed to update chat title in localStorage list:", e);
+                    }
+                }
+            }
+        }
+        // --- End Dynamic Title Logic ---
+
         setChatHistory((prev) => [...prev, newMessage]);
         return newMessage.id;
-    }, []); // Keep dependency array empty as setChatHistory is stable
+    }, [chatId, chatHistory]); // Add chatId and chatHistory as dependencies
 
     // Generate Menu Function (Refined - Added Auto-Hide Logic)
     const generateMenu = useCallback(async () => {
@@ -247,7 +311,17 @@ const HomePage = () => {
 
         let response: GenerateMenuFromPreferencesOutput | null = null;
         try {
-            response = await generateMenuFromPreferences({ preferences: trimmedPreferences, menuType });
+            // Pass user information to the AI flow
+            response = await generateMenuFromPreferences({
+                preferences: trimmedPreferences,
+                menuType,
+                userContext: { // Add user context object
+                    username: user?.username,
+                    // TODO: Add other relevant user data here (e.g., from settings)
+                    // dietaryRestrictions: user?.settings?.dietaryRestrictions,
+                    // healthGoals: user?.settings?.healthGoals,
+                }
+            });
             setMenuResponseData(response);
 
             if (response?.trace) {
@@ -255,7 +329,8 @@ const HomePage = () => {
             }
 
             if (response?.menu) {
-                addMessage('component'); // Trigger component rendering
+                // Pass the response data when adding the component message
+                addMessage('component', undefined, undefined, undefined, undefined, undefined, response);
                 // *** NEW: Auto-hide preference section on successful generation ***
                 setIsPreferenceSectionOpen(false);
             } else {
@@ -273,7 +348,8 @@ const HomePage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [preferences, menuType, addMessage, toast]); // Added setIsPreferenceSectionOpen to dependencies? No, it's a setter.
+        // Added dependencies: user, setIsLoading, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen
+    }, [preferences, menuType, addMessage, toast, user, setIsLoading, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen]);
 
     // Suggest Modifications Function (Refined - Unchanged)
     const suggestModifications = useCallback(async () => {
@@ -293,7 +369,15 @@ const HomePage = () => {
 
         try {
             const menuString = JSON.stringify(menuResponseData.menu);
-            const modificationsResult = await suggestMenuModificationsBasedOnFeedback({ menu: menuString, feedback: trimmedFeedback });
+            // Pass user context to the feedback flow as well
+            const modificationsResult = await suggestMenuModificationsBasedOnFeedback({
+                menu: menuString,
+                feedback: trimmedFeedback,
+                userContext: { // Add user context object
+                    username: user?.username,
+                    // TODO: Add other relevant user data here
+                }
+            });
 
             if (modificationsResult && (modificationsResult.reasoning || modificationsResult.modifiedMenu)) {
                 setMenuModifications(modificationsResult);
@@ -309,7 +393,8 @@ const HomePage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [feedback, menuResponseData, addMessage, toast]);
+        // Added dependencies: user, setIsLoading, setMenuModifications, setFeedback
+    }, [feedback, menuResponseData, addMessage, toast, user, setIsLoading, setMenuModifications, setFeedback]);
 
     // Handle Quick Reply (Optimized - Unchanged)
     const handleQuickReply = useCallback((reply: string) => {
@@ -320,7 +405,7 @@ const HomePage = () => {
         setTimeout(() => {
             generateMenu();
         }, 0);
-    }, [isLoading, generateMenu]);
+    }, [isLoading, generateMenu, setPreferences]); // Added setPreferences
 
     // --- Callback for Ingredient Export ---
     const handleExportIngredientsCallback = useCallback((markdown: string) => {
@@ -340,6 +425,159 @@ const HomePage = () => {
                 toast({ title: "Lỗi sao chép", description: "Không thể sao chép nội dung.", variant: "destructive" });
             });
     }, [toast]); // Depends only on toast
+
+    // --- Download Chat Handler ---
+    const handleDownloadChat = useCallback(() => {
+        if (!chatHistory || chatHistory.length === 0) {
+            toast({ title: "Không có gì để tải", description: "Lịch sử trò chuyện hiện tại đang trống.", variant: "destructive" });
+            return;
+        }
+
+        let chatContent = `Chat History (ID: ${chatId || 'new'})\n=====================================\n\n`;
+
+        chatHistory.forEach(message => {
+            const timestamp = new Date(message.id).toLocaleString('vi-VN'); // Use message ID as timestamp approx.
+            switch (message.type) {
+                case 'user':
+                    chatContent += `[${timestamp}] User:\n${message.text}\n\n`;
+                    break;
+                case 'bot':
+                    chatContent += `[${timestamp}] Bot:\n${message.text}\n\n`;
+                    break;
+                case 'system':
+                    chatContent += `[${timestamp}] System:\n${message.text}\n\n`;
+                    break;
+                case 'error':
+                    chatContent += `[${timestamp}] Error:\n${message.text}\n\n`;
+                    break;
+                case 'component':
+                    if (message.menuData?.menu) {
+                        chatContent += `[${timestamp}] Bot (Generated Menu - ${message.menuData.menuType}):\n\`\`\`json\n${JSON.stringify(message.menuData.menu, null, 2)}\n\`\`\`\n\n`;
+                        if (message.menuData.feedbackRequest) {
+                             chatContent += `[${timestamp}] Bot (Feedback Request):\n${message.menuData.feedbackRequest}\n\n`;
+                        }
+                    }
+                    break;
+                 case 'export_display':
+                     if (message.exportMarkdown) {
+                        chatContent += `[${timestamp}] Bot (Exported Checklist):\n${message.exportMarkdown}\n\n`;
+                     }
+                     break;
+                // Add other types if needed (trace, suggestion, etc.) - keeping simple for now
+                default:
+                    break;
+            }
+        });
+
+        try {
+            const blob = new Blob([chatContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const fileName = `chat_${chatId || Date.now()}.md`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast({ title: "Đã tải xuống", description: `Lịch sử trò chuyện đã được lưu vào ${fileName}` });
+        } catch (error) {
+            console.error("Failed to download chat:", error);
+            toast({ title: "Lỗi tải xuống", description: "Không thể tạo tệp tải xuống.", variant: "destructive" });
+        }
+
+    }, [chatHistory, chatId, toast]);
+    // --- End Download Chat Handler ---
+
+
+    // --- Effect to Load/Initialize Chat History based on chatId ---
+    useEffect(() => {
+        const loadChat = () => {
+            if (chatId) {
+                console.log("Attempting to load chat session with ID:", chatId);
+                const storageKey = `chatMessages_${chatId}`;
+                const storedMessages = localStorage.getItem(storageKey);
+
+                if (storedMessages) {
+                    try {
+                        const parsedMessages: ChatMessage[] = JSON.parse(storedMessages);
+                        // Basic validation: check if it's an array
+                        if (Array.isArray(parsedMessages)) {
+                            console.log(`Loaded ${parsedMessages.length} messages for chat ${chatId}`);
+                            setChatHistory(parsedMessages);
+                            // Find and restore menu data if present in loaded history
+                            const menuMessage = parsedMessages.find(msg => msg.type === 'component' && msg.menuData);
+                            if (menuMessage) {
+                                setMenuResponseData(menuMessage.menuData || null);
+                                console.log("Restored menu data from loaded chat.");
+                            } else {
+                                setMenuResponseData(null); // Ensure menu data is cleared if not found
+                            }
+                        } else {
+                            console.warn(`Invalid data found for ${storageKey}, starting fresh.`);
+                            setChatHistory([{ id: Date.now(), type: 'system', text: `Không thể tải lịch sử cho cuộc trò chuyện ${chatId}. Bắt đầu mới.` }]);
+                            setMenuResponseData(null); // Clear menu data
+                            localStorage.removeItem(storageKey); // Remove invalid data
+                        }
+                    } catch (error) {
+                        console.error(`Error parsing messages for chat ${chatId}:`, error);
+                        setChatHistory([{ id: Date.now(), type: 'system', text: `Lỗi khi tải lịch sử cho cuộc trò chuyện ${chatId}. Bắt đầu mới.` }]);
+                        localStorage.removeItem(storageKey); // Remove corrupted data
+                        setMenuResponseData(null); // Clear menu data
+                    }
+                } else {
+                    // No history found for this ID, start a new chat state but indicate it's for this ID
+                    console.log(`No stored messages found for chat ${chatId}, initializing.`);
+                    const chatTitle = localStorage.getItem('chatHistoryList') // Read title from the metadata list
+                        ? JSON.parse(localStorage.getItem('chatHistoryList')!).find((c: any) => c.id.toString() === chatId)?.title
+                        : `Chat ${chatId}`;
+                    // Use a generic loading message here, initial message is set by the other useEffect
+                    setChatHistory([{ id: Date.now(), type: 'system', text: `Đang xem lại cuộc trò chuyện: "${chatTitle || chatId}"...` }]);
+                    setMenuResponseData(null); // Clear menu data for new chat
+                }
+                // Reset other states when loading a chat
+                // setMenuResponseData(null); // Redundant now
+                setMenuModifications(null);
+                setFeedback('');
+                setIsPreferenceSectionOpen(false); // Usually hide preferences when loading old chat
+
+            } else {
+                // No chatId in URL, treat as a completely new session
+                console.log("No chatId in URL, starting a new chat session.");
+                // Initial message is now handled by the dedicated useEffect based on user
+                // setChatHistory([{ id: Date.now(), text: INITIAL_SYSTEM_MESSAGE, type: "system" }]); // Removed
+                setMenuResponseData(null);
+                setMenuModifications(null);
+                setFeedback('');
+                setIsPreferenceSectionOpen(true); // Show preferences for a new chat
+            }
+        };
+
+        loadChat();
+        // Dependency: chatId. Re-run when the user clicks a different chat link.
+        // Added setChatHistory back as it's needed if the load fails and we set a new history. The initial message effect guards against loops.
+    }, [chatId, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen, setChatHistory]);
+    // --- End Load/Initialize Chat History Effect ---
+
+    // --- Effect to Save Chat History to localStorage on Change ---
+    useEffect(() => {
+        // Only save if there's an active chatId and the history isn't empty
+        // (prevents saving the initial "loading" state over potentially valid data)
+        if (chatId && chatHistory.length > 0) {
+            // Avoid saving if the history only contains the initial system message for a loaded chat
+            const initialSystemMessagePattern = /^Đang xem lại cuộc trò chuyện:|^Bắt đầu cuộc trò chuyện mới:|^Không thể tải lịch sử|^Lỗi khi tải lịch sử/;
+            if (chatHistory.length === 1 && chatHistory[0].type === 'system' && initialSystemMessagePattern.test(chatHistory[0].text || '')) {
+               // Don't save the initial placeholder message
+            } else {
+                console.log(`Saving ${chatHistory.length} messages for chat ${chatId}`);
+                const storageKey = `chatMessages_${chatId}`;
+                localStorage.setItem(storageKey, JSON.stringify(chatHistory));
+            }
+        }
+        // Dependency: chatHistory and chatId. Save whenever the history changes for the current chat.
+    }, [chatHistory, chatId]);
+    // --- End Save Chat History Effect ---
+
 
     // --- Render Logic ---
 
@@ -363,12 +601,15 @@ const HomePage = () => {
             case 'error':
                  return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" /><Alert variant="destructive" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm"><AlertCircle className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Lỗi</AlertTitle><AlertDescription className="text-sm">{message.text}</AlertDescription></Alert></div> ) : null;
             case 'trace_display':
+                // Pass isLoading to AgentProcessVisualizer
                 return message.traceData ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1 opacity-50" /><div className={cn(botMessageBubbleClass, "bg-gray-50 dark:bg-gray-700/50 border border-border/50")}><AgentProcessVisualizer trace={message.traceData} isProcessing={isLoading} /></div></div> ) : null;
             case 'component':
-                if (menuResponseData?.menu) {
-                    const greetingText = `Tuyệt vời! Dựa trên yêu cầu của bạn, tôi đã chuẩn bị xong thực đơn ${menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'} rồi đây:`;
-                    return ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "space-y-3")}><p className="text-sm">{greetingText}</p><div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 overflow-hidden mt-2"><InteractiveMenu menuData={{ menu: menuResponseData.menu, menuType: menuType, }} onExportIngredients={handleExportIngredientsCallback} /></div>{menuResponseData.feedbackRequest && ( <p className="text-sm italic mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">{menuResponseData.feedbackRequest}</p> )}</div></div> ); // <-- Added onExportIngredients prop
-                } return null;
+                // Use message.menuData here instead of menuResponseData state
+                // Pass handleExportIngredientsCallback to InteractiveMenu
+                if (message.menuData?.menu) {
+                    const greetingText = `Tuyệt vời! Dựa trên yêu cầu của bạn, tôi đã chuẩn bị xong thực đơn ${message.menuData.menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'} rồi đây:`; // Use menuType from message data
+                    return ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "space-y-3")}><p className="text-sm">{greetingText}</p><div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 overflow-hidden mt-2"><InteractiveMenu menuData={{ menu: message.menuData.menu, menuType: message.menuData.menuType, }} onExportIngredients={handleExportIngredientsCallback} /></div>{message.menuData.feedbackRequest && ( <p className="text-sm italic mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">{message.menuData.feedbackRequest}</p> )}</div></div> );
+                } return null; // Added explicit return null
             case 'suggestion_display':
                 return message.suggestionData ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700")}><div className="flex items-center text-sm font-medium mb-2"><Info className="h-4 w-4 mr-2 flex-shrink-0" /><span>Gợi ý chỉnh sửa từ AI</span></div>{message.suggestionData.reasoning && ( <div className="mb-2"><p className="text-sm font-semibold">Lý do:</p><p className="text-sm">{message.suggestionData.reasoning}</p></div> )}{message.suggestionData.modifiedMenu && ( <div><p className="text-sm font-semibold mb-1">Thực đơn đề xuất (JSON):</p><ScrollArea className="max-h-48 w-full rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 p-2"><pre className="whitespace-pre-wrap font-mono text-xs text-gray-700 dark:text-gray-300 break-all">{message.suggestionData.modifiedMenu}</pre></ScrollArea></div> )}</div></div> ) : null;
             case 'suggestion_chip':
@@ -388,7 +629,7 @@ const HomePage = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => handleCopy(message.exportMarkdown)}
+                                            onClick={() => handleCopy(message.exportMarkdown)} // Pass handleCopy
                                         >
                                             <ClipboardCopy className="h-3.5 w-3.5" />
                                             <span className="sr-only">Sao chép</span>
@@ -412,8 +653,30 @@ const HomePage = () => {
             {/* Main Content Area */}
             <div className="flex flex-col flex-1 overflow-hidden">
 
-                {/* --- Persistent Toggle Button for Preferences --- */}
-                <div className="px-2 md:px-4 pt-2 md:pt-4 pb-1 flex justify-end shrink-0">
+                {/* --- Top Action Buttons --- */}
+                <div className="px-2 md:px-4 pt-2 md:pt-4 pb-1 flex justify-end gap-2 shrink-0">
+                     {/* Download Button */}
+                     <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleDownloadChat}
+                                    disabled={!chatHistory || chatHistory.length === 0}
+                                    className="gap-1.5"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Tải xuống</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Tải lịch sử trò chuyện này</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    {/* Preferences Toggle Button */}
                     <Button
                         variant="outline"
                         size="sm"
@@ -520,7 +783,8 @@ const HomePage = () => {
 
                 {/* --- Chat History Area --- */}
                 {/* flex-1 ensures it takes remaining space. Added pt-0 to remove gap when preferences are hidden */}
-                <ScrollArea className="flex-1 p-4 pt-0 bg-white dark:bg-gray-800/50">
+                {/* Assign the ref to the ScrollArea */}
+                <ScrollArea ref={chatScrollAreaRef} className="flex-1 p-4 pt-0 bg-white dark:bg-gray-800/50">
                     {isLoading && !menuResponseData && ( // Show thinking only during initial generation
                          <div className="flex justify-center py-4">
                             <ThinkingAnimation />
@@ -593,7 +857,7 @@ const HomePage = () => {
                     </div>
                 </div>
             </div> {/* End Main Content Area */}
-        </div> // End Flex Container
+        </div> // End Flex Container - Closing tag added
     );
 };
 

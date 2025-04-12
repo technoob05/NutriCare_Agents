@@ -14,6 +14,10 @@ const SuggestMenuModificationsBasedOnFeedbackInputSchema = z.object({
   menu: z.string().describe('The current menu being suggested.'),
   feedback: z.string().describe('User feedback on the menu.'),
   userPreferences: z.string().optional().describe('Optional user preferences to consider.'),
+  userContext: z.object({ // Add user context
+      username: z.string().optional().describe("Tên người dùng (nếu có)."),
+      // Add other potential user context fields here if needed
+  }).optional().describe("Thông tin ngữ cảnh về người dùng."),
 });
 
 export type SuggestMenuModificationsBasedOnFeedbackInput = z.infer<
@@ -43,6 +47,9 @@ const prompt = ai.definePrompt({
       menu: z.string().describe('The current menu being suggested.'),
       feedback: z.string().describe('User feedback on the menu.'),
       userPreferences: z.string().optional().describe('Optional user preferences to consider.'),
+      userContext: z.object({ // Add user context to prompt input schema
+          username: z.string().optional(),
+      }).passthrough().optional(),
     }),
   },
   output: {
@@ -58,6 +65,8 @@ const prompt = ai.definePrompt({
   User Feedback:
   {{feedback}}
 
+  User Information:
+  *   Username: {{#if userContext.username}} {{{userContext.username}}} {{else}} Không rõ {{/if}}
   {% if userPreferences %}
   Consider the following user preferences when modifying the menu:
   {{userPreferences}}

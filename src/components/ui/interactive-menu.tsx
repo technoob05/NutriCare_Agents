@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react'; // Added useRef
 import { motion, AnimatePresence } from 'framer-motion';
+import jsPDF from 'jspdf'; // Added jsPDF import
+import html2canvas from 'html2canvas'; // Added html2canvas import
 // Removed unused Accordion imports
 import { Badge } from '@/components/ui/badge';
 // Removed unused Separator import
@@ -21,6 +23,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import NearbyRestaurantsMap from '@/components/NearbyRestaurantsMap'; // Import the map component
 import {
     MoreVertical,
     Image as ImageIcon,
@@ -47,6 +50,7 @@ import {
     // Minimize2,   // Not used directly
     Sparkles,       // Image Generation Icon
     Salad,          // Placeholder Icon
+    MapPin,         // Map Icon for nearby search
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -85,7 +89,8 @@ interface InteractiveMenuProps {
     isLoading?: boolean; // Loading state for the whole menu
     onEditItem?: (day: string | null, mealType: string, itemIndex: number) => void;
     onRemoveItem?: (day: string | null, mealType: string, itemIndex: number) => void;
-    onExportIngredients?: (markdown: string) => void; // <-- Add new prop
+    onExportIngredients?: (markdown: string) => void;
+    // No need for a specific PDF export prop, we'll handle it internally
 }
 
 // --- Helper Components ---
@@ -188,6 +193,7 @@ const MenuItemCard: React.FC<{
     const [isLoadingImage, setIsLoadingImage] = useState(false);
     const [imageData, setImageData] = useState<string | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [isMapDialogOpen, setIsMapDialogOpen] = useState(false); // State for map dialog
 
     const handleEdit = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -251,6 +257,10 @@ const MenuItemCard: React.FC<{
         // if (!open) { setTimeout(() => { setImageData(null); setImageError(null); }, 300); }
     };
 
+    const handleMapDialogChange = (open: boolean) => {
+        setIsMapDialogOpen(open);
+    };
+
     const togglePrep = () => setIsPrepExpanded(!isPrepExpanded);
     const toggleIngredients = () => setIsIngredientsExpanded(!isIngredientsExpanded);
     const [isNutritionExpanded, setIsNutritionExpanded] = useState(false);
@@ -303,6 +313,10 @@ const MenuItemCard: React.FC<{
                                         <DropdownMenuItem onClick={handleGenerateImage} disabled={isLoadingImage}>
                                             {isLoadingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
                                             {imageData ? "Xem/Tạo lại ảnh" : "Tạo ảnh món ăn"}
+                                        </DropdownMenuItem>
+                                        {/* --- Add Map Button --- */}
+                                        <DropdownMenuItem onClick={() => setIsMapDialogOpen(true)}>
+                                            <MapPin className="mr-2 h-4 w-4" /> Tìm quán gần đây
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={handleEdit}>
@@ -460,6 +474,42 @@ const MenuItemCard: React.FC<{
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* --- Nearby Restaurants Map Dialog --- */}
+            <Dialog open={isMapDialogOpen} onOpenChange={handleMapDialogChange}>
+                <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0">
+                    <DialogHeader className="p-4 border-b">
+                        <DialogTitle className="flex items-center gap-2 text-lg">
+                            <MapPin size={18} className="text-primary" /> Tìm quán ăn gần đây cho: {item.name}
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                            Kết quả từ Google Maps. Vị trí của bạn được dùng để tìm kiếm (nếu được phép).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-grow overflow-y-auto p-4">
+                        {/* Ensure API key exists before rendering */}
+                        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+                            <NearbyRestaurantsMap
+                                keyword={item.name}
+                                apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                            />
+                        ) : (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Lỗi Cấu Hình</AlertTitle>
+                                <AlertDescription>API Key của Google Maps chưa được cấu hình trong biến môi trường (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY).</AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                    <DialogFooter className="p-4 border-t">
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">Đóng</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+             {/* --- End Map Dialog --- */}
+
         </TooltipProvider>
     );
 };
@@ -580,9 +630,15 @@ const dayTranslations: Record<string, string> = {
 /**
  * InteractiveMenu: The main component to display daily or weekly menus.
  */
-export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem, onExportIngredients }: InteractiveMenuProps) { // <-- Add prop here
+export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem, onExportIngredients }: InteractiveMenuProps) {
     const { menu, menuType, feedbackRequest } = menuData;
     const isMobile = useIsMobile(); // Hook to detect mobile viewport
+    const menuContentRef = useRef<HTMLDivElement>(null); // Ref for the content area to capture
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false); // State for PDF generation loading
+    const [isGeneratingText, setIsGeneratingText] = useState(false); // State for Text generation loading
+
+    // --- State for Active Tab (Weekly View) ---
+    const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
     // Calculate max scroll height dynamically and responsively
     const scrollMaxHeight = useMemo(() => {
@@ -640,8 +696,179 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
             : `# Danh sách Nguyên liệu (${menuType === 'weekly' ? 'Tuần' : 'Hôm nay'})\n\n(Không có nguyên liệu nào được liệt kê)`;
 
         onExportIngredients(markdown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- menu and menuType are stable within this component's lifecycle when menuData changes
-    }, [onExportIngredients]); // Corrected dependency array - menu/menuType come from props
+    }, [onExportIngredients, menuType, menu]); // Added menu and menuType dependencies
+
+    // --- PDF Download Handler ---
+    const handleDownloadPdf = useCallback(async () => {
+        const elementToCapture = menuContentRef.current; // Use the ref
+        if (!elementToCapture || isGeneratingPdf) return;
+
+        setIsGeneratingPdf(true);
+        console.log("Starting PDF generation...");
+
+        try {
+            // Ensure styles are applied before capturing
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for rendering
+
+            const canvas = await html2canvas(elementToCapture, {
+                scale: 2, // Increase resolution
+                useCORS: true, // If you have external images
+                logging: false, // Reduce console noise
+                // Allow elements to break across pages (experimental, might not work perfectly)
+                // windowHeight: elementToCapture.scrollHeight,
+                // scrollY: -window.scrollY, // Adjust for current scroll position
+                backgroundColor: '#ffffff', // Set background to white for PDF
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px', // Use pixels for easier mapping from canvas
+                format: [canvas.width, canvas.height] // Set PDF size based on canvas size
+                // format: 'a4' // Or use a standard format like A4
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            // Check if image height exceeds PDF page height
+            if (canvas.height > pdfHeight) {
+                 // Simple multi-page handling (split image by page height)
+                let position = 0;
+                let pageHeight = pdfHeight; // Use the calculated page height in pixels
+                let remainingHeight = canvas.height;
+
+                while (remainingHeight > 0) {
+                    // Calculate the height of the slice for the current page
+                    const sliceHeight = Math.min(pageHeight, remainingHeight);
+
+                    // Create a temporary canvas for the slice
+                    const sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = canvas.width;
+                    sliceCanvas.height = sliceHeight;
+                    const sliceCtx = sliceCanvas.getContext('2d');
+
+                    // Draw the slice from the original canvas
+                    sliceCtx?.drawImage(canvas, 0, position, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                    // Add the slice image to the PDF
+                    const sliceImgData = sliceCanvas.toDataURL('image/png');
+                    pdf.addImage(sliceImgData, 'PNG', 0, 0, pdfWidth, sliceHeight); // Use sliceHeight
+
+                    remainingHeight -= sliceHeight;
+                    position += sliceHeight;
+
+                    // Add a new page if there's more content
+                    if (remainingHeight > 0) {
+                        pdf.addPage();
+                    }
+                }
+
+            } else {
+                 // Single page
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            }
+
+
+            pdf.save(`thuc-don-${menuType}-${activeTab ?? 'hom-nay'}.pdf`); // Dynamic filename
+            console.log("PDF generated successfully.");
+
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            // Optionally show an error message to the user
+            alert("Đã xảy ra lỗi khi tạo file PDF. Vui lòng thử lại.");
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    }, [isGeneratingPdf, menuType, activeTab]); // Dependencies for the PDF handler
+
+    // --- Text Download Handler ---
+    const handleDownloadText = useCallback(() => {
+        if (!menu || isGeneratingText) return;
+
+        setIsGeneratingText(true);
+        console.log("Starting Text file generation...");
+
+        let menuText = "";
+
+        const formatItem = (item: MenuItemData, indent = "  ") => {
+            let text = `${indent}- ${item.name}\n`;
+            if (item.estimatedCost) text += `${indent}  * Chi phí ước tính: ${item.estimatedCost}\n`;
+            if (item.calories !== undefined) text += `${indent}  * Calo: ${item.calories} kcal\n`;
+            if (item.protein !== undefined) text += `${indent}  * Đạm: ${item.protein} g\n`;
+            if (item.carbs !== undefined) text += `${indent}  * Carb: ${item.carbs} g\n`;
+            if (item.fat !== undefined) text += `${indent}  * Béo: ${item.fat} g\n`;
+            if (item.ingredients && item.ingredients.length > 0) {
+                text += `${indent}  * Nguyên liệu:\n`;
+                item.ingredients.forEach(ing => text += `${indent}    - ${ing}\n`);
+            }
+            if (item.preparation) {
+                text += `${indent}  * Cách chế biến:\n${indent}    ${item.preparation.replace(/\n/g, `\n${indent}    `)}\n`; // Indent multi-line prep
+            }
+             if (item.healthBenefits && item.healthBenefits.length > 0) {
+                text += `${indent}  * Lợi ích:\n`;
+                item.healthBenefits.forEach(benefit => text += `${indent}    - ${benefit}\n`);
+            }
+            return text + "\n"; // Add space after item
+        };
+
+        const formatMeal = (mealKey: keyof DailyMenuData, mealData: MenuItemData[] | undefined, indent = "") => {
+            if (!mealData || mealData.length === 0) return "";
+            const mealLabels: Record<string, string> = {
+                breakfast: "Bữa Sáng", lunch: "Bữa Trưa", dinner: "Bữa Tối", snacks: "Bữa Phụ / Ăn Vặt"
+            };
+            let text = `${indent}--- ${mealLabels[mealKey]} ---\n\n`;
+            mealData.forEach(item => text += formatItem(item, indent + "  "));
+            return text;
+        };
+
+        if (menuType === 'daily') {
+            const dailyMenu = menu as DailyMenuData;
+            menuText += "===========================\n";
+            menuText += "    THỰC ĐƠN HÔM NAY\n";
+            menuText += "===========================\n\n";
+            menuText += formatMeal('breakfast', dailyMenu.breakfast);
+            menuText += formatMeal('lunch', dailyMenu.lunch);
+            menuText += formatMeal('dinner', dailyMenu.dinner);
+            menuText += formatMeal('snacks', dailyMenu.snacks);
+        } else if (menuType === 'weekly') {
+            const weeklyMenu = menu as WeeklyMenuData;
+            menuText += "===========================\n";
+            menuText += "     THỰC ĐƠN TUẦN\n";
+            menuText += "===========================\n\n";
+            daysOfWeek.forEach(day => {
+                const dayData = weeklyMenu[day];
+                if (dayData && Object.values(dayData).some(m => m && m.length > 0)) {
+                    menuText += `=== ${dayTranslations[day] || day} ===\n\n`;
+                    menuText += formatMeal('breakfast', dayData.breakfast, "  ");
+                    menuText += formatMeal('lunch', dayData.lunch, "  ");
+                    menuText += formatMeal('dinner', dayData.dinner, "  ");
+                    menuText += formatMeal('snacks', dayData.snacks, "  ");
+                    menuText += "\n"; // Add space between days
+                }
+            });
+        }
+
+        try {
+            const blob = new Blob([menuText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `thuc-don-${menuType}-${activeTab ?? 'hom-nay'}.txt`; // Dynamic filename
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log("Text file generated successfully.");
+        } catch (error) {
+            console.error("Error generating text file:", error);
+            alert("Đã xảy ra lỗi khi tạo file văn bản. Vui lòng thử lại.");
+        } finally {
+            setIsGeneratingText(false);
+        }
+
+    }, [menu, menuType, activeTab, isGeneratingText]); // Dependencies for the text handler
+
 
     // --- Loading State ---
     if (isLoading) {
@@ -725,6 +952,20 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
             return dayData && Object.values(dayData).some(meal => meal && meal.length > 0);
         }) || daysOfWeek[0]; // Default to Monday if somehow all are empty (though covered by hasAnyWeeklyData)
 
+        // Initialize activeTab state *only once* when the component mounts or defaultActiveTab changes
+        // We use useEffect for this side effect to avoid calling useState initializer incorrectly
+        React.useEffect(() => {
+            if (menuType === 'weekly' && defaultActiveTab && !activeTab) {
+                setActiveTab(defaultActiveTab);
+            }
+            // Reset activeTab if menuType changes or menu becomes null
+            if (menuType !== 'weekly' || !menu) {
+                 setActiveTab(undefined);
+            }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [defaultActiveTab, menuType, menu]); // Dependencies for initialization
+
+
         // Render Weekly View
         return (
             <div className="w-full">
@@ -745,21 +986,35 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
                                     <TooltipContent side="bottom" align="end"><p>Các hành động cho thực đơn tuần này</p></TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem onClick={handleExportIngredients}>
-                                    <Download className="mr-2 h-4 w-4" /> Xuất Nguyên Liệu (Checklist)
-                                </DropdownMenuItem>
-                                {/* Add other actions like Download Menu, Save Menu later */}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuItem onClick={handleExportIngredients}>
+                                        <ShoppingBasket className="mr-2 h-4 w-4" /> Xuất Nguyên Liệu (Checklist)
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+                                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                        {isGeneratingPdf ? "Đang tạo PDF..." : "Tải Thực Đơn (PDF)"}
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={handleDownloadText} disabled={isGeneratingText}>
+                                        {isGeneratingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                        {isGeneratingText ? "Đang tạo Văn bản..." : "Tải Thực Đơn (Văn bản)"}
+                                    </DropdownMenuItem>
+                                    {/* Add other actions like Save Menu later */}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                  )}
 
                 {/* ================================================== */}
                 {/* SỬA LỖI: Thêm TooltipProvider bao bọc Tabs       */}
                 {/* ================================================== */}
                 <TooltipProvider>
-                    <Tabs defaultValue={defaultActiveTab} className="w-full">
+                    {/* Use controlled Tabs component with onValueChange */}
+                    <Tabs
+                        value={activeTab} // Control the active tab via state
+                        onValueChange={setActiveTab} // Update state on change
+                        // defaultValue={defaultActiveTab} // defaultValue is not needed for controlled component
+                        className="w-full"
+                    >
                         {/* Responsive TabsList with ScrollArea */}
                         <div className="relative mb-4"> {/* Increased margin-bottom */}
                             <ScrollArea className="w-full pb-2 -mx-1 px-1">
@@ -779,9 +1034,12 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
                                                         disabled={!dayHasData}
                                                         className={cn(
                                                             "px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all duration-200",
-                                                            "data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold",
+                                                            // --- Standard Active State ---
+                                                            "data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold", // Reverted to background bg, primary text, semibold
+                                                            // --- Inactive State ---
                                                             "data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted-foreground/10 data-[state=inactive]:hover:text-foreground",
-                                                            "data-[disabled]:opacity-40 data-[disabled]:pointer-events-none" // More subtle disabled state
+                                                            // --- Disabled State ---
+                                                            "data-[disabled]:opacity-40 data-[disabled]:pointer-events-none"
                                                         )}
                                                     >
                                                         {displayLabel}
@@ -798,47 +1056,47 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
                             <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-border/50 to-transparent"></div>
                         </div>
 
-                        {/* Animated TabsContent */}
-                        <AnimatePresence mode="wait">
-                            {daysOfWeek.map(day => {
-                                // Check again if this specific day has data before rendering its content
-                                const dayHasData = weeklyMenu[day] && Object.values(weeklyMenu[day]!).some(m => m && m.length > 0);
+                        {/* Container for the content to be captured by html2canvas */}
+                        <div ref={menuContentRef} id="menu-content" className="bg-background"> {/* Added ref and id, ensure background */}
+                            {/* Render ONLY the TabsContent for the activeTab */}
+                            {/* <AnimatePresence mode="wait"> */}
+                                {daysOfWeek
+                                    .filter(day => day === activeTab) // Filter to render only the active tab's content
+                                    .map(day => {
+                                    // Check if the specific day (which is the activeTab) has data
+                                    const dayHasData = weeklyMenu[day] && Object.values(weeklyMenu[day]!).some(m => m && m.length > 0);
 
-                                // Render TabsContent only if the day has data
-                                // forceMount keeps it in DOM for exit animation, but we control rendering via conditional
+                                // Render only if it's the active tab AND has data
                                 return dayHasData ? (
                                     <TabsContent
                                         key={day}
-                                        value={day}
-                                        forceMount
-                                        className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                        value={day} // Value still needed for matching
+                                        // forceMount // Removed forceMount
+                                        className="mt-1 focus-visible:ring-0 focus-visible:ring-offset-0" // Added mt-1 back
                                     >
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            transition={{ duration: 0.25, ease: "easeInOut" }}
-                                        >
-                                            <Card className="border-none shadow-none bg-transparent">
-                                                <CardContent className="p-0">
-                                                    <ScrollArea
-                                                        style={{ height: `${scrollMaxHeight}px` }}
-                                                        className="pr-3 -mr-3" // Padding for scrollbar
-                                                    >
-                                                        <DayMealsSection
-                                                            dayData={weeklyMenu[day]}
-                                                            dayKey={day}
-                                                            onEditItem={onEditItem}
-                                                            onRemoveItem={onRemoveItem}
-                                                        />
-                                                    </ScrollArea>
-                                                </CardContent>
-                                            </Card>
-                                        </motion.div>
+                                        {/* Removed motion.div wrapper */}
+                                        <Card className="border-none shadow-none bg-transparent">
+                                            <CardContent className="p-0">
+                                                {/* ScrollArea added back inside each TabsContent */}
+                                                <ScrollArea
+                                                    style={{ height: `${scrollMaxHeight}px` }}
+                                                    className="pr-3 -mr-3" // Padding for scrollbar
+                                                >
+                                                    <DayMealsSection
+                                                        dayData={weeklyMenu[day]}
+                                                        dayKey={day}
+                                                        onEditItem={onEditItem}
+                                                        onRemoveItem={onRemoveItem}
+                                                    />
+                                                </ScrollArea>
+                                            </CardContent>
+                                        </Card>
+                                        {/* Removed motion.div wrapper */}
                                     </TabsContent>
-                                ) : null; // Don't render content if day has no data
-                            })}
-                        </AnimatePresence>
+                                    ) : null; // Fallback if active tab somehow has no data (shouldn't happen)
+                                })}
+                            {/* </AnimatePresence> */}
+                        </div> {/* End of menu-content div */}
                     </Tabs>
                 </TooltipProvider>
                 {/* ================================================== */}
@@ -861,7 +1119,7 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
     // --- Daily Menu View ---
     if (menuType === 'daily') {
         const dailyMenu = menu as DailyMenuData;
-        // Check if any meal in the daily menu has items
+        // Check if any meal in the daily menu has items - Moved definition earlier
         const hasAnyDailyData = Object.values(dailyMenu).some(meal => meal && meal.length > 0);
 
         // Empty state specifically for daily view
@@ -895,7 +1153,7 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
                             {/* <CardDescription>Thứ Ba, ngày 28 tháng 5</CardDescription> */}
                         </div>
                          {/* --- Menu Actions Dropdown (Corrected JSX) --- */}
-                         {onExportIngredients && hasAnyDailyData && ( // Only show if handler is provided AND there's data
+                         {onExportIngredients && hasAnyDailyData && ( // Use hasAnyDailyData here
                             <div className="flex-shrink-0 ml-2">
                                 <DropdownMenu>
                                     <TooltipProvider>
@@ -911,33 +1169,46 @@ export function InteractiveMenu({ menuData, isLoading, onEditItem, onRemoveItem,
                                             <TooltipContent side="bottom" align="end"><p>Tùy chọn</p></TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
-                                    <DropdownMenuContent align="end" className="w-56">
-                                        <DropdownMenuItem onClick={handleExportIngredients}>
-                                            <Download className="mr-2 h-4 w-4" /> Xuất Nguyên Liệu (Checklist)
-                                        </DropdownMenuItem>
-                                        {/* Add other actions like Download Menu, Save Menu later */}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuItem onClick={handleExportIngredients}>
+                                        <ShoppingBasket className="mr-2 h-4 w-4" /> Xuất Nguyên Liệu (Checklist)
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+                                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                        {isGeneratingPdf ? "Đang tạo PDF..." : "Tải Thực Đơn (PDF)"}
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={handleDownloadText} disabled={isGeneratingText}>
+                                        {isGeneratingText ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                        {isGeneratingText ? "Đang tạo Văn bản..." : "Tải Thực Đơn (Văn bản)"}
+                                    </DropdownMenuItem>
+                                    {/* Add other actions like Save Menu later */}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                          )}
                     </CardHeader>
-                    <CardContent className="p-0">
-                        <ScrollArea
-                            style={{ height: `${scrollMaxHeight}px` }}
-                            className="pr-3 -mr-3" // Padding for scrollbar
-                        >
-                            <DayMealsSection
-                                dayData={dailyMenu}
-                                dayKey={null} // Indicate it's the daily view
-                                onEditItem={onEditItem}
-                                onRemoveItem={onRemoveItem}
-                            />
-                        </ScrollArea>
-                        {/* +++ Add Nutrition Chart for Daily View +++ */}
-                        <div className="mt-6 px-1">
-                            <NutritionChart data={dailyMenu} />
-                        </div>
-                    </CardContent>
+                    {/* Container for the content to be captured by html2canvas */}
+                    <div ref={menuContentRef} id="menu-content" className="bg-background"> {/* Added ref and id, ensure background */}
+                        {/* Make CardContent a flex container and apply calculated height */}
+                        <CardContent className="p-0 flex flex-col" style={{ height: `${scrollMaxHeight}px` }}>
+                            {/* Allow ScrollArea to grow and shrink */}
+                            <ScrollArea
+                                // Remove fixed height style from here
+                                className="pr-3 -mr-3 flex-grow" // Add flex-grow
+                            >
+                                <DayMealsSection
+                                    dayData={dailyMenu}
+                                    dayKey={null} // Indicate it's the daily view
+                                    onEditItem={onEditItem}
+                                    onRemoveItem={onRemoveItem}
+                                />
+                            </ScrollArea>
+                            {/* Nutrition Chart (should not grow or shrink) */}
+                            <div className="mt-6 px-1 flex-shrink-0"> {/* Add flex-shrink-0 */}
+                                <NutritionChart data={dailyMenu} />
+                            </div>
+                        </CardContent>
+                    </div> {/* End of menu-content div */}
                 </Card>
 
                 {/* Feedback Request Area */}

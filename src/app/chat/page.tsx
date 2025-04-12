@@ -1,17 +1,25 @@
 'use client';
 
 import React, { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // Dynamically import the component that contains the chat interface
 const DynamicChatInterface = React.lazy(() => import('@/components/HomePage'));
 
+// Wrapper component to handle Suspense and search params
+function ChatPageContent() {
+  const searchParams = useSearchParams();
+  const chatId = searchParams.get('id'); // Get chat ID from URL query ?id=...
+
+  // Pass the chatId to the actual chat interface component
+  return <DynamicChatInterface chatId={chatId} />;
+}
+
 export default function ChatPage() {
-  // Add authentication check if needed for the chat page specifically
-  // You might want to redirect unauthenticated users from here as well
-  // useEffect(() => { ... check localStorage ... router.push('/auth/login') ... }, []);
+  // Add authentication check if needed here
 
   return (
-    // Use Suspense for lazy loading the chat component
+    // Suspense boundary is necessary for useSearchParams
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -20,7 +28,7 @@ export default function ChatPage() {
         </div>
       </div>
     }>
-      <DynamicChatInterface />
+      <ChatPageContent />
     </Suspense>
   );
 }

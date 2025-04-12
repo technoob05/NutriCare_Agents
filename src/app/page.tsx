@@ -3,6 +3,19 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+// Import Dialog, Tabs, and Settings components
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger, // Added DialogTrigger
+  DialogFooter
+} from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SettingsDialogContent, SpeechSettings } from '@/components/SettingsDialogContent'; // Assuming these are correctly exported
+import { HealthInformationForm } from '@/components/HealthInformationForm'; // Assuming this is correctly exported
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"
 import {
@@ -18,20 +31,14 @@ import {
   ArrowRight,
   Heart,
   BookOpen,
-  UserCircle
+  UserCircle,
+  Settings // Added Settings icon
 } from "lucide-react"
 import { MainNav } from "@/components/main-nav"
 import { useToast } from "@/hooks/use-toast"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog"
+// Removed duplicate Dialog imports
 import { motion, AnimatePresence } from "framer-motion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+// Removed duplicate Tabs imports
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -84,6 +91,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [favorites, setFavorites] = useState<string[]>([])
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // State for settings dialog
 
   useEffect(() => {
     checkAuth()
@@ -386,10 +394,43 @@ export default function HomePage() {
                           <UserCircle className="mr-1 h-3 w-3" />
                           Hồ sơ
                         </Button>
-                        {/* Giả sử có trang cài đặt */}
-                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => router.push("/settings")}>
-                          Cài đặt
-                        </Button>
+                        {/* Settings Dialog Trigger */}
+                        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="text-xs h-8">
+                              <Settings className="mr-1 h-3 w-3" /> {/* Added icon */}
+                              Cài đặt
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                              <DialogTitle>Cài đặt (Settings)</DialogTitle>
+                              <DialogDescription>
+                                Quản lý thông tin sức khỏe và cấu hình AI của bạn.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Tabs defaultValue="ai-config" className="mt-4">
+                              <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="ai-config">Cấu hình AI</TabsTrigger>
+                                <TabsTrigger value="health-info">Thông tin sức khỏe</TabsTrigger>
+                                <TabsTrigger value="speech">Speech</TabsTrigger>
+                              </TabsList>
+                              <TabsContent value="ai-config" className="mt-4">
+                                <SettingsDialogContent />
+                              </TabsContent>
+                              <TabsContent value="health-info" className="mt-4">
+                                <HealthInformationForm />
+                              </TabsContent>
+                              <TabsContent value="speech" className="mt-4">
+                                <SpeechSettings />
+                              </TabsContent>
+                            </Tabs>
+                            {/* Optional: Add a close button in the footer if needed */}
+                            {/* <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Đóng</Button>
+                            </DialogFooter> */}
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
                   </div>
@@ -437,7 +478,8 @@ export default function HomePage() {
                       Khám phá các món ăn đa dạng và dinh dưỡng được đề xuất cho bạn
                     </p>
                   </div>
-                  <Button onClick={() => router.push("/chat")} className="shrink-0">
+                  {/* Ensure button doesn't take full width on small screens when stacked */}
+                  <Button onClick={() => router.push("/chat")} className="shrink-0 w-full md:w-auto">
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Tùy chỉnh thực đơn
                   </Button>
@@ -593,7 +635,8 @@ export default function HomePage() {
 
         {/* Dialog chi tiết món ăn nâng cao */}
         <Dialog open={showDetails} onOpenChange={setShowDetails}>
-          <DialogContent className="max-w-3xl p-0">
+          {/* Responsive Dialog Width: narrower on small screens, max-width on larger screens */}
+          <DialogContent className="w-[90vw] sm:max-w-3xl p-0">
             {selectedMeal && (
               <>
                 <DialogHeader className="p-6 pb-4 border-b">

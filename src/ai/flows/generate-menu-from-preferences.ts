@@ -14,6 +14,12 @@ import { logger } from 'genkit/logging';
 const GenerateMenuFromPreferencesInputSchema = z.object({
     preferences: z.string().describe('User preferences (e.g., "thích ăn cay", "ăn chay", "nhiều rau", "ít dầu mỡ", "ngân sách 100k/ngày", "dị ứng hải sản").'),
     menuType: z.enum(['daily', 'weekly']).describe('Menu type (daily or weekly).'),
+    userContext: z.object({
+        username: z.string().optional().describe("Tên người dùng (nếu có)."),
+        // Add other potential user context fields here as needed
+        // dietaryRestrictions: z.array(z.string()).optional().describe("Các hạn chế ăn uống đã biết."),
+        // healthGoals: z.array(z.string()).optional().describe("Mục tiêu sức khỏe."),
+    }).optional().describe("Thông tin ngữ cảnh về người dùng."),
 });
 export type GenerateMenuFromPreferencesInput = z.infer<typeof GenerateMenuFromPreferencesInputSchema>;
 
@@ -118,12 +124,16 @@ const planMenuStructurePrompt = ai.definePrompt(
                 menuType: z.enum(['daily', 'weekly']),
                 searchContent: z.string().optional(),
                 citations: z.array(CitationSchema).optional(),
+                userContext: z.object({ // Add userContext here too
+                    username: z.string().optional(),
+                }).passthrough().optional(), // Allow other fields if needed
             }),
         },
         output: { schema: PlanningOutputSchema },
         prompt: `Là một Chuyên gia Dinh dưỡng và Lập Kế hoạch Thực đơn **chuyên nghiệp, tỉ mỉ, và có trách nhiệm cao**, hãy tạo ra một kế hoạch thực đơn Việt Nam và giải thích **chi tiết từng bước suy luận (step-by-step reasoning)** của bạn.
 
 **Thông tin đầu vào:**
+*   Người dùng: {{#if userContext.username}} Tên: {{{userContext.username}}} {{else}} Không rõ {{/if}}
 *   Sở thích & Yêu cầu người dùng: "{{{preferences}}}" (Phân tích kỹ lưỡng mọi chi tiết).
 *   Loại thực đơn: "{{{menuType}}}"
 *   Thông tin bổ sung từ Google Search (nếu có):
@@ -154,6 +164,9 @@ const GenerateMenuContentInputSchema = z.object({
     menuType: z.enum(['daily', 'weekly']), // Thêm menuType vào đây
     searchContent: z.string().optional(),
     citations: z.array(CitationSchema).optional(),
+    userContext: z.object({ // Add userContext here too
+        username: z.string().optional(),
+    }).passthrough().optional(), // Allow other fields if needed
 });
 type GenerateMenuContentInput = z.infer<typeof GenerateMenuContentInputSchema>;
 
@@ -172,6 +185,7 @@ const generateMenuContentPrompt = ai.definePrompt({
     output: { schema: MenuContentStringOutputSchema }, // Sử dụng schema output mới (text-based)
     prompt: `Là một AI chuyên tạo nội dung thực đơn Việt Nam, hãy tạo nội dung chi tiết cho thực đơn {{{menuType}}} dựa **CHÍNH XÁC** theo kế hoạch được cung cấp, có tham khảo thông tin tìm kiếm nếu cần.
 **Thông tin:**
+*   Người dùng: {{#if userContext.username}} Tên: {{{userContext.username}}} {{else}} Không rõ {{/if}}
 *   Sở thích người dùng: {{{preferences}}}
 *   Loại thực đơn: {{{menuType}}}
 *   **Kế hoạch BẮT BUỘC phải theo:** {{{menuPlan}}} (Kế hoạch này PHẢI bao gồm bữa sáng, trưa, tối cho mỗi ngày).
@@ -224,8 +238,8 @@ const generateFeedbackRequestPrompt = ai.definePrompt({
 // +++ NEW: Parser Function (Basic Implementation - Giữ nguyên từ lần sửa trước) +++
 /**
  * Parses a Markdown-formatted menu string into a Zod schema object.
- * NOTE: This is a basic parser and might need significant improvements
- * for robustness against LLM output variations.
+ * Parses a Markdown-formatted menu string into a Zod schema object.
+ * Enhanced for robustness against common LLM output variations.
  */
 async function parseMenuTextToZod(
     menuString: string,
@@ -233,142 +247,205 @@ async function parseMenuTextToZod(
 ): Promise<AnyMenuData> {
     logger.info(`[Parser] Starting to parse ${menuType} menu text.`);
     const lines = menuString.trim().split('\n');
-    let currentDay: keyof WeeklyMenuData | 'daily' | null = menuType === 'daily' ? 'daily' : null; // Initialize null for weekly
+    let currentDay: keyof WeeklyMenuData | 'daily' | null = menuType === 'daily' ? 'daily' : null;
     let currentMeal: keyof DailyMenuData | null = null;
     let currentItem: Partial<MenuItemData> | null = null;
-    const result: any = menuType === 'weekly' ? {} : { breakfast: [], lunch: [], dinner: [], snacks: [] }; // Initialize structure
+    const result: any = menuType === 'weekly' ? {} : { breakfast: [], lunch: [], dinner: [], snacks: [] };
 
+    // More flexible day/meal mapping
     const daysMap: { [key: string]: keyof WeeklyMenuData } = {
-        "thứ hai": "Monday", "thứ ba": "Tuesday", "thứ tư": "Wednesday",
-        "thứ năm": "Thursday", "thứ sáu": "Friday", "thứ bảy": "Saturday", "chủ nhật": "Sunday"
+        "thứ hai": "Monday", "thứ 2": "Monday", "monday": "Monday",
+        "thứ ba": "Tuesday", "thứ 3": "Tuesday", "tuesday": "Tuesday",
+        "thứ tư": "Wednesday", "thứ 4": "Wednesday", "wednesday": "Wednesday",
+        "thứ năm": "Thursday", "thứ 5": "Thursday", "thursday": "Thursday",
+        "thứ sáu": "Friday", "thứ 6": "Friday", "friday": "Friday",
+        "thứ bảy": "Saturday", "thứ 7": "Saturday", "saturday": "Saturday",
+        "chủ nhật": "Sunday", "cn": "Sunday", "sunday": "Sunday"
     };
     const mealsMap: { [key: string]: keyof DailyMenuData } = {
-        "bữa sáng": "breakfast", "bữa trưa": "lunch", "bữa tối": "dinner", "bữa phụ": "snacks"
+        "bữa sáng": "breakfast", "sáng": "breakfast", "breakfast": "breakfast",
+        "bữa trưa": "lunch", "trưa": "lunch", "lunch": "lunch",
+        "bữa tối": "dinner", "tối": "dinner", "dinner": "dinner",
+        "bữa phụ": "snacks", "phụ": "snacks", "snacks": "snacks"
     };
+
+    function normalizeKey(key: string): string {
+        return key.trim().toLowerCase().replace(/[:\s]+$/, ''); // Remove trailing colons/spaces
+    }
+
+    function parseNumeric(value: string): number | undefined {
+        if (!value) return undefined;
+        // Try to extract numbers, handling potential units like 'g', 'kcal'
+        const match = value.match(/([0-9]+(?:[.,][0-9]+)?)/);
+        if (match && match[1]) {
+            // Replace comma with dot for float parsing if needed
+            const numericString = match[1].replace(',', '.');
+            const num = parseFloat(numericString);
+            return isNaN(num) ? undefined : num;
+        }
+        return undefined;
+    }
 
     function finalizeCurrentItem() {
         if (currentItem && currentItem.name && currentDay) {
             const targetDay = menuType === 'weekly' ? result[currentDay as keyof WeeklyMenuData] : result;
-            // Ensure targetDay and currentMeal are valid before pushing
             if (targetDay && currentMeal && Array.isArray(targetDay[currentMeal])) {
-                 // Basic validation/defaults before pushing
-                 if (!currentItem.ingredients) currentItem.ingredients = ["Chưa rõ"];
-                 if (!currentItem.preparation) currentItem.preparation = "Chưa rõ";
+                // Set defaults more reliably
+                if (!currentItem.ingredients || currentItem.ingredients.length === 0) {
+                    currentItem.ingredients = ["Chưa rõ"];
+                    logger.debug(`[Parser] Setting default ingredients for "${currentItem.name}"`);
+                }
+                if (!currentItem.preparation) {
+                    currentItem.preparation = "Chưa rõ";
+                    logger.debug(`[Parser] Setting default preparation for "${currentItem.name}"`);
+                }
 
-                 try {
-                     // Validate item against schema before pushing
-                     const validatedItem = MenuItemSchema.parse(currentItem);
-                     targetDay[currentMeal].push(validatedItem);
-                     logger.debug(`[Parser] Added item "${validatedItem.name}" to ${currentDay} - ${currentMeal}`);
-                 } catch (itemValidationError: any) {
-                      logger.warn(`[Parser] Invalid MenuItem data for "${currentItem.name}". Skipping item. Error: ${itemValidationError.message}`, { itemData: currentItem });
-                 }
+                try {
+                    // Validate item against schema before pushing
+                    const validatedItem = MenuItemSchema.parse(currentItem);
+                    targetDay[currentMeal].push(validatedItem);
+                    logger.debug(`[Parser] Added item "${validatedItem.name}" to ${currentDay} - ${currentMeal}`);
+                } catch (itemValidationError: any) {
+                    logger.warn(`[Parser] Invalid MenuItem data for "${currentItem.name}". Skipping item. Error: ${itemValidationError.message}`, { itemData: currentItem, errorDetails: itemValidationError.errors });
+                }
             } else {
-                 logger.warn(`[Parser] Could not add item "${currentItem.name}", invalid day/meal structure: Day=${currentDay}, Meal=${currentMeal}`);
+                logger.warn(`[Parser] Could not add item "${currentItem?.name || 'Unnamed Item'}", invalid day/meal structure: Day=${currentDay}, Meal=${currentMeal}`);
             }
+        } else if (currentItem && !currentItem.name) {
+             logger.warn(`[Parser] Discarding item without a name.`, { itemData: currentItem });
         }
         currentItem = null;
     }
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         const trimmedLine = line.trim();
-        if (!trimmedLine) continue; // Skip empty lines
+        if (!trimmedLine) continue;
 
-        // Match Day (Weekly only)
+        // Match Day (Weekly only) - More flexible matching
         if (menuType === 'weekly') {
-            const dayMatch = trimmedLine.match(/^##\s+(.+)/i);
+            const dayMatch = trimmedLine.match(/^##\s*([^#]+)/i); // Match ## followed by non-# chars
             if (dayMatch) {
-                finalizeCurrentItem(); // Finalize previous item before starting new day
-                const dayName = dayMatch[1].trim().toLowerCase();
-                // Find the key in daysMap whose value is included in dayName
-                const mappedDayKey = Object.keys(daysMap).find(key => dayName.includes(key));
-                currentDay = mappedDayKey ? daysMap[mappedDayKey] : null;
+                finalizeCurrentItem();
+                const dayNameRaw = dayMatch[1].trim().toLowerCase();
+                let mappedDayKey: keyof WeeklyMenuData | null = null;
+                // Find the key in daysMap that is contained within dayNameRaw
+                for (const key in daysMap) {
+                    if (dayNameRaw.includes(key)) {
+                        mappedDayKey = daysMap[key];
+                        break;
+                    }
+                }
+                currentDay = mappedDayKey;
 
                 if (currentDay) {
-                    if (!result[currentDay]) { // Initialize day structure only if it doesn't exist
-                         result[currentDay] = { breakfast: [], lunch: [], dinner: [], snacks: [] };
+                    if (!result[currentDay]) {
+                        result[currentDay] = { breakfast: [], lunch: [], dinner: [], snacks: [] };
                     }
-                    currentMeal = null; // Reset meal for new day
-                    logger.debug(`[Parser] Switched to day: ${currentDay}`);
+                    currentMeal = null;
+                    logger.debug(`[Parser] Switched to day: ${currentDay} (from "${dayNameRaw}")`);
                 } else {
-                     logger.warn(`[Parser] Could not map day: "${dayMatch[1].trim()}"`);
-                     // Keep previous day? Or set to null? Setting to null prevents adding items to wrong day.
-                     currentDay = null;
+                    logger.warn(`[Parser] Could not map day: "${dayNameRaw}"`);
+                    currentDay = null; // Prevent adding items to unknown day
                 }
-                continue; // Move to next line after processing day header
+                continue;
             }
         }
 
-        // Match Meal (Only if currentDay is valid)
+        // Match Meal (Only if currentDay is valid) - More flexible matching
         if (currentDay) {
-            const mealMatch = trimmedLine.match(/^###\s+(.+)/i);
+            const mealMatch = trimmedLine.match(/^###\s*([^#]+)/i); // Match ### followed by non-# chars
             if (mealMatch) {
-                finalizeCurrentItem(); // Finalize previous item before starting new meal
-                const mealName = mealMatch[1].trim().toLowerCase();
-                // Find the key in mealsMap whose value is included in mealName
-                const mappedMealKey = Object.keys(mealsMap).find(key => mealName.includes(key));
-                currentMeal = mappedMealKey ? mealsMap[mappedMealKey] : null;
+                finalizeCurrentItem();
+                const mealNameRaw = mealMatch[1].trim().toLowerCase();
+                let mappedMealKey: keyof DailyMenuData | null = null;
+                 // Find the key in mealsMap that is contained within mealNameRaw
+                 for (const key in mealsMap) {
+                    if (mealNameRaw.includes(key)) {
+                        mappedMealKey = mealsMap[key];
+                        break;
+                    }
+                }
+                currentMeal = mappedMealKey;
 
                 if (!currentMeal) {
-                     logger.warn(`[Parser] Could not map meal: "${mealMatch[1].trim()}"`);
+                    logger.warn(`[Parser] Could not map meal: "${mealNameRaw}"`);
                 } else {
-                     // Ensure the meal array exists in the target day structure
-                     const targetDay = menuType === 'weekly' ? result[currentDay as keyof WeeklyMenuData] : result;
-                     if (targetDay && !targetDay[currentMeal]) {
-                         targetDay[currentMeal] = []; // Initialize meal array if missing
-                     }
-                     logger.debug(`[Parser] Switched to meal: ${currentMeal}`);
+                    const targetDay = menuType === 'weekly' ? result[currentDay as keyof WeeklyMenuData] : result;
+                    if (targetDay && !targetDay[currentMeal]) {
+                        targetDay[currentMeal] = [];
+                    }
+                     logger.debug(`[Parser] Switched to meal: ${currentMeal} (from "${mealNameRaw}")`);
                 }
-                continue; // Move to next line after processing meal header
+                continue;
             }
         }
 
-        // Match start of a new Dish Item (Only if currentDay and currentMeal are valid)
-        if (currentDay && currentMeal && trimmedLine.startsWith('-')) {
-            finalizeCurrentItem(); // Finalize previous item
-            currentItem = {}; // Start a new item object
-            // Attempt to extract name directly if on the same line, e.g., "- * Tên món: Phở Bò"
-            const nameMatchInline = trimmedLine.match(/^\-\s*\*\s*Tên món:\s*(.+)/i);
-            if (nameMatchInline) {
-                currentItem.name = nameMatchInline[1].trim();
-            } else {
-                 // Maybe the name is just after the dash, e.g. "- Phở bò"
-                 const nameAfterDash = trimmedLine.match(/^\-\s*(.+)/);
-                 if (nameAfterDash && !nameAfterDash[1].trim().startsWith('*')) { // Avoid capturing '* Tên món:'
-                     currentItem.name = nameAfterDash[1].trim();
+        // Match start of a new Dish Item (More flexible: starts with '-' or '*')
+        if (currentDay && currentMeal && (trimmedLine.startsWith('-') || trimmedLine.startsWith('*'))) {
+             // Check if it's a detail line first (e.g., "* Nguyên liệu:")
+             const detailMatchTest = trimmedLine.match(/^[\-\*]\s*([^:]+):\s*(.+)/i);
+             if (!detailMatchTest) { // If it doesn't look like a detail line, treat as new item
+                 finalizeCurrentItem();
+                 currentItem = {};
+                 // Extract name after '-' or '*'
+                 const nameMatch = trimmedLine.match(/^[\-\*]\s*(.+)/);
+                 if (nameMatch && nameMatch[1]) {
+                     // Further check if the extracted part looks like a key-value pair itself
+                     const potentialDetailMatch = nameMatch[1].match(/^([^:]+):\s*(.+)/);
+                     if (potentialDetailMatch) {
+                         // It looks like a detail line that started with '-' or '*', handle it below
+                         // Reset currentItem as this wasn't a new item name line
+                         currentItem = null;
+                     } else {
+                         currentItem.name = nameMatch[1].trim();
+                         logger.debug(`[Parser] Started new item with name: "${currentItem.name}"`);
+                         continue; // Name found, move to next line
+                     }
+                 } else {
+                      // Could not extract name, reset item
+                      currentItem = null;
                  }
-            }
-            continue; // Move to next line
+             }
+             // If it was a detail line, it will be handled by the detail matching logic below
         }
 
-        // Match Dish Item Details (Only if inside an item)
+
+        // Match Dish Item Details (Only if inside an item) - More flexible key matching
         if (currentItem) {
-            const detailMatch = trimmedLine.match(/^\*\s*([^:]+):\s*(.+)/i);
+            // Match lines starting with '*' or '-' followed by Key: Value
+            const detailMatch = trimmedLine.match(/^[\-\*]\s*([^:]+):\s*(.+)/i);
             if (detailMatch) {
-                const key = detailMatch[1].trim().toLowerCase();
+                const keyRaw = detailMatch[1];
+                const key = normalizeKey(keyRaw);
                 const value = detailMatch[2].trim();
 
-                try { // Add try-catch for parsing specific fields
-                    if (key.includes("tên món") && !currentItem.name) currentItem.name = value;
-                    else if (key.includes("nguyên liệu")) currentItem.ingredients = value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean); // Split by comma, semicolon, or newline
-                    else if (key.includes("cách làm")) currentItem.preparation = value;
-                    else if (key.includes("chi phí")) currentItem.estimatedCost = value;
-                    else if (key.includes("calories")) currentItem.calories = parseInt(value.replace(/\D/g, ''), 10); // Remove non-digits before parsing
-                    else if (key.includes("protein")) currentItem.protein = parseFloat(value.replace(/[^0-9.]/g, '')); // Remove non-numeric/dot chars
-                    else if (key.includes("carbs")) currentItem.carbs = parseFloat(value.replace(/[^0-9.]/g, ''));
-                    else if (key.includes("fat") || key.includes("chất béo")) currentItem.fat = parseFloat(value.replace(/[^0-9.]/g, ''));
-                    else if (key.includes("lợi ích")) currentItem.healthBenefits = value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+                logger.debug(`[Parser] Matched detail: KeyRaw="${keyRaw}", KeyNorm="${key}", Value="${value}"`); // Changed trace to debug
+
+                try {
+                    if ((key.includes("tên") || key.includes("name")) && !currentItem.name) currentItem.name = value;
+                    else if (key.includes("nguyên liệu") || key.includes("ingredient")) currentItem.ingredients = value.split(/[,;\n]|(\s-\s)/).map(s => s?.trim()).filter(Boolean); // Split by ,, ;, newline, or ' - '
+                    else if (key.includes("cách làm") || key.includes("preparation") || key.includes("hướng dẫn") || key.includes("instruction")) currentItem.preparation = value;
+                    else if (key.includes("chi phí") || key.includes("cost")) currentItem.estimatedCost = value;
+                    else if (key.includes("calories") || key.includes("calo") || key.includes("năng lượng")) currentItem.calories = parseNumeric(value);
+                    else if (key.includes("protein") || key.includes("đạm")) currentItem.protein = parseNumeric(value);
+                    else if (key.includes("carbs") || key.includes("carb") || key.includes("tinh bột")) currentItem.carbs = parseNumeric(value);
+                    else if (key.includes("fat") || key.includes("chất béo")) currentItem.fat = parseNumeric(value);
+                    else if (key.includes("lợi ích") || key.includes("benefit")) currentItem.healthBenefits = value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+                    else {
+                        logger.debug(`[Parser] Unmapped key "${key}" for item "${currentItem.name || 'Unnamed'}"`); // Changed trace to debug
+                    }
                 } catch (parseValueError: any) {
-                     logger.warn(`[Parser] Error parsing value for key "${key}": ${value}. Error: ${parseValueError.message}`);
-                     // Decide how to handle: skip field, set default, etc.
-                     // For now, just log and potentially skip the field.
+                    logger.warn(`[Parser] Error processing value for key "${key}": ${value}. Error: ${parseValueError.message}`);
                 }
-            } else if (currentItem.preparation && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('-')) {
-                 // Append to preparation if it's a continuation line without a known prefix
-                 currentItem.preparation += "\n" + trimmedLine;
+            } else if (currentItem.preparation && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('-') && !trimmedLine.startsWith('*')) {
+                // Append to preparation if it's a continuation line (more robust check)
+                currentItem.preparation += "\n" + trimmedLine;
+                 logger.debug(`[Parser] Appended to preparation for item "${currentItem.name || 'Unnamed'}"`); // Changed trace to debug
             } else if (!currentItem.name && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('-') && !trimmedLine.startsWith('*')) {
-                 // If name wasn't found yet and line doesn't match other patterns, assume it's the name
-                 currentItem.name = trimmedLine;
+                // If name wasn't found yet and line doesn't match other patterns, assume it's the name
+                currentItem.name = trimmedLine;
+                 logger.debug(`[Parser] Assumed item name from line: "${currentItem.name}"`);
             }
         }
     }
@@ -378,19 +455,25 @@ async function parseMenuTextToZod(
     // Final validation against the appropriate schema
     try {
         if (menuType === 'daily') {
-            // Ensure all required meals exist, even if empty
-            if (!result.breakfast) result.breakfast = [];
-            if (!result.lunch) result.lunch = [];
-            if (!result.dinner) result.dinner = [];
+            if (!result.breakfast) { result.breakfast = []; logger.warn("[Parser] Daily menu missing breakfast array entirely, initializing."); }
+            if (!result.lunch) { result.lunch = []; logger.warn("[Parser] Daily menu missing lunch array entirely, initializing."); }
+            if (!result.dinner) { result.dinner = []; logger.warn("[Parser] Daily menu missing dinner array entirely, initializing."); }
+            logger.info("[Parser] Attempting final Zod validation for DailyMenuSchema.");
             return DailyMenuSchema.parse(result);
         } else {
-            // For weekly, Zod schema handles optional days.
-            // We could add logic here to ensure required days exist if needed.
+             // Add check for weekly menu structure integrity before parsing
+             for (const dayKey of Object.keys(result)) {
+                 const dayData = result[dayKey];
+                 if (!dayData.breakfast) { dayData.breakfast = []; logger.warn(`[Parser] Weekly menu missing breakfast array for ${dayKey}, initializing.`); }
+                 if (!dayData.lunch) { dayData.lunch = []; logger.warn(`[Parser] Weekly menu missing lunch array for ${dayKey}, initializing.`); }
+                 if (!dayData.dinner) { dayData.dinner = []; logger.warn(`[Parser] Weekly menu missing dinner array for ${dayKey}, initializing.`); }
+             }
+            logger.info("[Parser] Attempting final Zod validation for WeeklyMenuSchema.");
             return WeeklyMenuSchema.parse(result);
         }
     } catch (e: any) {
-        logger.error(`[Parser] Final Zod validation failed: ${e.message}`, { parsedObject: result });
-        throw new Error(`Failed to parse menu text into valid Zod schema: ${e.message}`);
+        logger.error(`[Parser] Final Zod validation failed: ${e.message}`, { parsedObject: JSON.stringify(result, null, 2), errorDetails: e.errors }); // Log full error details
+        throw new Error(`Failed to parse menu text into valid Zod schema: ${e.message}. Check logs for details.`);
     }
 }
 
@@ -421,14 +504,32 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         // --- Step 1: RAG/Search Agent (Giữ nguyên) ---
         const searchStepName = "Bước 1: Tìm kiếm Thông tin (RAG)";
         startTime = Date.now();
-        let searchInput = `Công thức nấu ăn Việt Nam ${input.preferences} thực đơn ${input.menuType}`;
-        let step1Reasoning = `Thực hiện tìm kiếm Google để thu thập thông tin liên quan đến sở thích '${input.preferences}' và loại thực đơn '${input.menuType}'.`;
+
+        // Explicit check to satisfy TypeScript, though Zod validation should guarantee this
+        if (typeof input.preferences !== 'string' || typeof input.menuType !== 'string') {
+             logger.error("[Flow Start] Critical error: Input preferences or menuType are not strings despite Zod validation.");
+             throw new Error("Internal error: Invalid input types detected within the flow.");
+        }
+        // Assign to new constants *after* the check to help TS inference
+        const userPreferences: string = input.preferences;
+        const typeOfMenu: string = input.menuType;
+
+        let searchInput = `Công thức nấu ăn Việt Nam ${userPreferences} thực đơn ${typeOfMenu}`; // Use the new constants
+        let step1Reasoning = `Thực hiện tìm kiếm Google để thu thập thông tin liên quan đến sở thích '${userPreferences}' và loại thực đơn '${typeOfMenu}'.`; // Use constants here too
         let step1Status: StepTrace['status'] = 'success';
         let step1ErrorDetails: string | undefined = undefined;
         let step1OutputData: any = {};
         try {
-            logger.info(`[${searchStepName}] Gọi googleSearch với query: "${searchInput}"`);
-            groundedSearchResult = await googleSearch(searchInput);
+            // Ensure searchInput is definitely a string before calling googleSearch
+            if (typeof searchInput !== 'string') {
+                 // This should theoretically not happen due to initial checks, but belts and suspenders.
+                 logger.error(`[${searchStepName}] Critical internal error: searchInput is not a string despite prior checks.`);
+                 throw new Error("Internal error: searchInput is not a string before Google Search call.");
+            }
+            // Assign to a new constant after the check to satisfy TS type narrowing
+            const validatedSearchInput: string = searchInput;
+            logger.info(`[${searchStepName}] Gọi googleSearch với query: "${validatedSearchInput}"`);
+            groundedSearchResult = await googleSearch(validatedSearchInput); // Use the validated constant
             extractedCitations = groundedSearchResult.metadata?.groundingChunks?.map(chunk => ({
                 title: chunk.web.title,
                 uri: chunk.web.uri
@@ -446,27 +547,40 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
                 step1Reasoning = `Tìm kiếm Google được thực hiện cho '${input.preferences}' và '${input.menuType}', nhưng không trả về nội dung hoặc trích dẫn.`;
             } else {
                 logger.info(`[${searchStepName}] Thành công: Nhận được nội dung dài ${groundedSearchResult.content?.length ?? 0} ký tự, ${extractedCitations.length} trích dẫn, và ${searchSuggestionHtml ? 'có' : 'không có'} HTML chip gợi ý.`);
-                step1Reasoning = `Thực hiện tìm kiếm Google cho '${input.preferences}' và '${input.menuType}'. Tìm thấy ${extractedCitations.length} nguồn tham khảo.${searchSuggestionHtml ? ' Chip gợi ý tìm kiếm cũng được cung cấp.' : ''}`;
+                step1Reasoning = `Thực hiện tìm kiếm Google cho '${userPreferences}' và '${typeOfMenu}'. Tìm thấy ${extractedCitations.length} nguồn tham khảo.${searchSuggestionHtml ? ' Chip gợi ý tìm kiếm cũng được cung cấp.' : ''}`; // Use constants
             }
         } catch (error: any) {
             step1Status = 'error';
             step1ErrorDetails = error.message || String(error);
             logger.error(`[${searchStepName}] Lỗi nghiêm trọng: ${step1ErrorDetails}`, error);
-            step1Reasoning = `Tìm kiếm Google cho '${input.preferences}' và '${input.menuType}' thất bại: ${step1ErrorDetails}.`;
+            step1Reasoning = `Tìm kiếm Google cho '${userPreferences}' và '${typeOfMenu}' thất bại: ${step1ErrorDetails}.`; // Use constants
         } finally {
-            traceLog.push({
-                stepName: searchStepName, status: step1Status, inputData: { query: searchInput },
-                outputData: { ...step1OutputData, reasoning: step1Reasoning },
-                errorDetails: step1ErrorDetails, durationMs: Date.now() - startTime
-            });
+            // Define inputData and outputData for trace log separately to ensure type correctness
+            const traceInputData = { query: searchInput ?? "[Search input unavailable]" };
+            const finalReasoning = typeof step1Reasoning === 'string' ? step1Reasoning : "[Reasoning unavailable]";
+            const traceOutputData = { ...step1OutputData, reasoning: finalReasoning };
+
+            // Explicitly construct the object matching StepTrace type
+            const traceEntry: StepTrace = {
+                stepName: searchStepName, // string
+                status: step1Status, // 'success' | 'error' | 'skipped'
+                inputData: traceInputData, // any | undefined
+                outputData: traceOutputData, // object | undefined
+                errorDetails: step1ErrorDetails, // string | undefined
+                durationMs: Date.now() - startTime // number | undefined
+            };
+            traceLog.push(traceEntry); // Push the explicitly typed object
         }
 
         // --- Step 2: Planning Agent (Giữ nguyên) ---
         const planningStepName = "Bước 2: Lập Kế hoạch & Suy luận (Reasoning)";
         startTime = Date.now()
         let planningInput = {
-            preferences: input.preferences, menuType: input.menuType,
-            searchContent: groundedSearchResult?.content, citations: extractedCitations
+            preferences: input.preferences,
+            menuType: input.menuType,
+            searchContent: groundedSearchResult?.content,
+            citations: extractedCitations,
+            userContext: input.userContext // Pass userContext to planning
         };
         let step2Status: StepTrace['status'] = 'success';
         let step2ErrorDetails: string | undefined = undefined;
@@ -493,12 +607,21 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             menuPlan = `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`;
             planningReasoning = `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua do lỗi: ${step2ErrorDetails}**`;
         } finally {
-            traceLog.push({
-                stepName: planningStepName, status: step2Status,
-                inputData: safeStringify(planningInput, 1500),
-                outputData: { ...step2OutputData, reasoning: safeStringify(planningReasoning, 4000) },
-                errorDetails: step2ErrorDetails, durationMs: Date.now() - startTime,
-            });
+            // Define inputData and outputData for trace log separately
+            const traceInputData = safeStringify(planningInput, 1500);
+            const finalReasoning = safeStringify(planningReasoning, 4000) ?? "[Reasoning unavailable]";
+            const traceOutputData = { ...step2OutputData, reasoning: finalReasoning };
+
+            // Explicitly construct the object matching StepTrace type
+            const traceEntry: StepTrace = {
+                stepName: planningStepName, // string
+                status: step2Status, // 'success' | 'error' | 'skipped'
+                inputData: traceInputData, // any | undefined
+                outputData: traceOutputData, // object | undefined
+                errorDetails: step2ErrorDetails, // string | undefined
+                durationMs: Date.now() - startTime // number | undefined
+            };
+            traceLog.push(traceEntry); // Push the explicitly typed object
         }
 
         // --- Step 3: Content Writing & Parsing Agent (UPDATED with Reasoning Fallback) ---
@@ -509,7 +632,8 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             searchContent: groundedSearchResult?.content,
             citations: extractedCitations,
             menuPlan: menuPlan,
-            menuType: input.menuType
+            menuType: input.menuType,
+            userContext: input.userContext // Pass userContext to content writing
         };
         let step3Reasoning = `(Reasoning dự phòng) Không thể tạo hoặc phân tích nội dung thực đơn.`; // Initial fallback
         let step3Status: StepTrace['status'] = 'success';
@@ -585,14 +709,25 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
              // Ensure reasoning reflects the error state if an LLM call error occurred
              step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý output ban đầu: ${step3ErrorDetails}`;
         } finally {
-            traceLog.push({
-                stepName: writingStepName,
-                status: step3Status,
-                inputData: step3Status !== 'skipped' ? safeStringify(writingInput, 1500) : { note: "Step skipped due to previous error." },
-                outputData: { ...step3OutputData, reasoning: step3Reasoning },
-                errorDetails: step3ErrorDetails,
-                durationMs: Date.now() - startTime
-            });
+             // Define inputData and outputData for trace log separately
+             const traceInputData = step3Status !== 'skipped' ? safeStringify(writingInput, 1500) : { note: "Step skipped due to previous error." };
+             // Ensure finalReasoning is string | undefined to match schema
+             const finalReasoning = typeof step3Reasoning === 'string' ? step3Reasoning : undefined;
+             const otherOutputProps = { ...step3OutputData }; // Get other props like parsingStatus etc.
+
+             // Construct the trace entry directly
+             const traceEntry: StepTrace = {
+                 stepName: writingStepName,
+                 status: step3Status,
+                 inputData: traceInputData,
+                 // Conditionally include outputData only if there's reasoning or other props
+                 outputData: (finalReasoning !== undefined || Object.keys(otherOutputProps).length > 0)
+                     ? { ...otherOutputProps, reasoning: finalReasoning }
+                     : undefined,
+                 errorDetails: step3ErrorDetails,
+                 durationMs: Date.now() - startTime
+             };
+             traceLog.push(traceEntry); // Push the explicitly typed object
         }
 
 
@@ -637,12 +772,21 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             logger.error(`[${fallbackStepName}] Lỗi không mong muốn khi áp dụng fallback: ${error.message}`, error);
             fallbackReasoning = `Gặp lỗi khi kiểm tra fallback: ${error.message}`;
         } finally {
-            traceLog.push({
-                stepName: fallbackStepName, status: 'success',
-                inputData: { menuExists: !!menuContent, step3Status: step3Status },
-                outputData: { reasoning: fallbackReasoning, fallbackApplied: fallbackApplied },
-                durationMs: Date.now() - startTime
-            });
+            // Define inputData and outputData for trace log separately
+            const traceInputData = { menuExists: !!menuContent, step3Status: step3Status };
+            const finalReasoning = typeof fallbackReasoning === 'string' ? fallbackReasoning : "[Fallback reasoning unavailable]";
+            const traceOutputData = { reasoning: finalReasoning, fallbackApplied: fallbackApplied };
+
+            // Explicitly construct the object matching StepTrace type
+            const traceEntry: StepTrace = {
+                stepName: fallbackStepName, // string
+                status: 'success', // 'success' | 'error' | 'skipped'
+                inputData: traceInputData, // any | undefined
+                outputData: traceOutputData, // object | undefined
+                // errorDetails: undefined, // No error details in this specific finally block
+                durationMs: Date.now() - startTime // number | undefined
+            };
+            traceLog.push(traceEntry); // Push the explicitly typed object
         }
 
 
@@ -680,11 +824,21 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             logger.warn(`[${feedbackStepName}] Sử dụng câu hỏi phản hồi dự phòng.`);
             feedbackRequest = fallbackFeedbackRequest;
         } finally {
-            traceLog.push({
-                stepName: feedbackStepName, status: step4Status, inputData: feedbackInput,
-                outputData: { ...step4OutputData, reasoning: step4Reasoning },
-                errorDetails: step4ErrorDetails !== undefined ? step4ErrorDetails : undefined, durationMs: Date.now() - startTime
-            });
+             // Define inputData and outputData for trace log separately
+             const traceInputData = feedbackInput;
+             const finalReasoning = typeof step4Reasoning === 'string' ? step4Reasoning : "[Feedback reasoning unavailable]";
+             const traceOutputData = { ...step4OutputData, reasoning: finalReasoning };
+
+             // Explicitly construct the object matching StepTrace type
+             const traceEntry: StepTrace = {
+                 stepName: feedbackStepName, // string
+                 status: step4Status, // 'success' | 'error' | 'skipped'
+                 inputData: traceInputData, // any | undefined
+                 outputData: traceOutputData, // object | undefined
+                 errorDetails: step4ErrorDetails, // string | undefined (already handled potential undefined)
+                 durationMs: Date.now() - startTime // number | undefined
+             };
+             traceLog.push(traceEntry); // Push the explicitly typed object
         }
 
         // --- Step 5: Formatting Agent (Giữ nguyên) ---
@@ -700,11 +854,21 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             citationsAvailable: extractedCitations.length > 0,
             searchSuggestionHtmlAvailable: !!searchSuggestionHtml
         };
-        traceLog.push({
-            stepName: formattingStepName, status: step5Status, inputData: step5InputSummary,
-            outputData: { reasoning: step5Reasoning, finalOutputStructure: "{ menu, feedbackRequest, trace, menuType, citations, searchSuggestionHtml }" },
-            durationMs: Date.now() - startTime
-        });
+         // Define inputData and outputData for trace log separately
+         const traceInputData = step5InputSummary;
+         const finalReasoning = typeof step5Reasoning === 'string' ? step5Reasoning : "[Formatting reasoning unavailable]";
+         const traceOutputData = { reasoning: finalReasoning, finalOutputStructure: "{ menu, feedbackRequest, trace, menuType, citations, searchSuggestionHtml }" };
+
+         // Explicitly construct the object matching StepTrace type
+         const traceEntry: StepTrace = {
+             stepName: formattingStepName, // string
+             status: step5Status, // 'success' | 'error' | 'skipped'
+             inputData: traceInputData, // any | undefined
+             outputData: traceOutputData, // object | undefined
+             // errorDetails: undefined, // No error details in this step
+             durationMs: Date.now() - startTime // number | undefined
+         };
+        traceLog.push(traceEntry); // Push the explicitly typed object
         logger.info(`[${formattingStepName}] Hoàn tất định dạng kết quả cuối cùng.`);
 
         // --- Construct Final Output ---

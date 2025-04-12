@@ -1,8 +1,7 @@
 import type {Metadata} from 'next';
 import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/components/ui/theme-provider';
-import { Toaster } from "@/components/ui/toaster"; // Import Toaster
+import { Providers } from "@/components/providers"; // Import the new Providers component
 import { metadata } from '@/metadata';
 
 const geistSans = Geist({
@@ -23,10 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <Providers> {/* Use the Providers component */}
           {children}
-          <Toaster /> {/* Add Toaster here */}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
