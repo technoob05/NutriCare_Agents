@@ -376,8 +376,8 @@ NutriCare Agents has an ambitious development roadmap:
 **404 Brain Not Found Team:**
 
 * **Nguyễn Lâm Phú Quý:** Project Lead / Product Manager / Data Scientist
-* **Huỳnh Trung Kiệt:** AI Engineer (Multi-Agent Systems)
-* **Đào Sỹ Duy Minh:** AI Engineer (Recommendation Systems)
+* **Huỳnh Trung Kiệt:** AI Engineer (Recommendation Systems)
+* **Đào Sỹ Duy Minh:** AI Engineer (Multi-Agent Systems)
 * **Bàng Mỹ Linh:** AI Engineer (NLP Specialist)
 * **Phan Bá Thanh:** Data Engineer / Infrastructure Specialist
 
