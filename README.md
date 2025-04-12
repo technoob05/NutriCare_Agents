@@ -15,6 +15,12 @@
 
 ![image](https://github.com/user-attachments/assets/daa563a0-1f77-44b9-a463-6883c7dd75e6)
 
+## 🧠 Backend API
+Toàn bộ logic về phân tích dinh dưỡng và hệ thống đề xuất thực phẩm được xử lý bởi backend riêng biệt, bạn có thể tham khảo tại đây:
+👉 **[Food Recommendation API Repository](https://github.com/trungkiet2005/NutriCare-Recommend-API)**  
+> Đây là nơi tập trung core logic cho gợi ý thực đơn, phân tích hồ sơ sức khỏe người dùng và các xử lý liên quan đến dữ liệu dinh dưỡng.(Chứa các endpoints RESTful phục vụ cho hệ thống NutriCare AI Agents)
+
+
 ## Table of Contents
 
 * [Overview](#overview)
