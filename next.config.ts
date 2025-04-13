@@ -8,14 +8,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Exclude async_hooks from the client build
-      config.resolve.alias['async_hooks'] = false;
-    }
-
-    return config;
-  },
 };
 
 export default nextConfig;
