@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn, useSession } from "next-auth/react"; // Import useSession
+import { signIn } from "next-auth/react"; // Vẫn giữ import signIn cho nút Google
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,30 +33,20 @@ export default function LoginPage() {
     password: ""
   });
   const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
-  const { data: session, status } = useSession(); // Use the session hook
 
   // Animation for the cybernetic particles (Lấy từ code high-tech)
   const [particles, setParticles] = useState<Array<{ id: number, x: number, y: number }>>([]);
 
   useEffect(() => {
     setMounted(true);
-
-    // === NEW: Check NextAuth session status ===
-    if (status === "authenticated") {
-      router.push("/"); // Redirect if already authenticated via NextAuth
+    // === Chức năng gốc: Kiểm tra localStorage ===
+    const currentUser = localStorage.getItem("currentUser");
+    if (currentUser) {
+      router.push("/");
     }
-    // === END NEW ===
+    // === Kết thúc chức năng gốc ===
 
     // === Hiệu ứng particles (Lấy từ code high-tech) ===
-    // Keep the localStorage check for now for the manual login,
-    // but the NextAuth check above handles the redirect after Google login.
-    // Consider migrating manual login to NextAuth Credentials provider later.
-    const currentUser = localStorage.getItem("currentUser");
-    if (!session && currentUser) { // Only redirect if no NextAuth session but localStorage exists
-        router.push("/");
-    }
-
-
     const initialParticles = Array.from({ length: 30 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -75,7 +65,7 @@ export default function LoginPage() {
     return () => clearInterval(interval);
     // === Kết thúc hiệu ứng particles ===
 
-  }, [router, status, session]); // Add status and session to dependency array
+  }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

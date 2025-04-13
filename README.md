@@ -1,9 +1,7 @@
-# NutriCare Agents: Intelligent Vietnamese Nutrition Platform
+# NutriCare AI: Personalized Vietnamese Nutrition Advisor
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/technoob05/NutriCare_Agents)
-[![Made with Gemini](https://img.shields.io/badge/Made%20with-Gemini-blue)](https://gemini.google.com/)
-[![Firebase: Hosting](https://img.shields.io/badge/Firebase-Hosting-orange)](https://firebase.google.com/)
+[![Project Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/technoob05/NutriAI) <!-- Assuming this is the repo path -->
 
 **Team:** 404 Brain Not Found
 
@@ -13,393 +11,319 @@
 
 ---
 
-![image](https://github.com/user-attachments/assets/daa563a0-1f77-44b9-a463-6883c7dd75e6)
-
 ## Table of Contents
 
-* [Overview](#overview)
-* [The Challenge](#the-challenge)
-* [Our Solution: NutriCare Agents](#our-solution-nutricare-agents)
-  * [Core Features](#core-features)
-  * [Responsible AI Implementation](#responsible-ai-implementation)
-* [Technology Architecture](#technology-architecture)
-  * [Core Technologies](#core-technologies)
-  * [System Architecture Diagram](#system-architecture-diagram)
-* [Implementation Guide](#implementation-guide)
-  * [Requirements](#requirements)
-  * [Setup Process](#setup-process)
-  * [Environment Configuration](#environment-configuration)
-  * [Deployment](#deployment)
-* [User Experience](#user-experience)
-* [Roadmap & Future Development](#roadmap--future-development)
-* [Development Team](#development-team)
-* [Contributions](#contributions)
-* [License](#license)
-* [Contact Information](#contact-information)
+*   [Introduction](#introduction)
+*   [The Problem](#the-problem)
+*   [Our Solution: NutriCare AI](#our-solution-nutricare-ai)
+    *   [Key Features](#key-features)
+    *   [Responsible AI Principles](#responsible-ai-principles)
+*   [Technology Stack](#technology-stack)
+*   [System Architecture](#system-architecture)
+*   [Getting Started](#getting-started)
+    *   [Prerequisites](#prerequisites)
+    *   [Installation](#installation)
+    *   [Environment Variables](#environment-variables)
+    *   [Running the Application](#running-the-application)
+*   [Usage Guide](#usage-guide)
+*   [Future Development](#future-development)
+*   [Meet the Team](#meet-the-team)
+*   [Contributing](#contributing)
+*   [License](#license)
+*   [Contact](#contact)
 
 ---
 
-## Overview
+## Introduction
 
-**NutriCare Agents** is an advanced nutrition advisory system developed for the **GDGOC Hackathon Vietnam 2025**. The platform leverages cutting-edge AI technology including multi-modal Gemini APIs, Graph Neural Networks (GNN), and an orchestrated multi-agent LLM architecture to deliver personalized nutrition guidance tailored specifically for the Vietnamese population.
+**NutriCare AI** (Project NutriAI) is an intelligent nutrition support system developed for the **GDGOC Hackathon Vietnam 2025**. It leverages cutting-edge AI, including Graph Neural Networks (GNN) and a multi-agent Large Language Model (LLM) system, combined with deep nutritional knowledge, specifically tailored for the Vietnamese population.
 
-Our platform addresses crucial nutrition-related health challenges in Vietnam through a scientifically-grounded, culturally-appropriate approach that considers individual health conditions, taste preferences, regional cuisine variations, and budgetary constraints.
-
----
-
-## The Challenge
-
-Vietnam faces significant nutrition-related health challenges:
-
-* **Growing Non-Communicable Diseases:** Diet-related conditions account for 74% of deaths in Vietnam, with rising rates of cardiovascular disease, type 2 diabetes, and certain cancers.
-
-* **Digestive Health Issues:** Poor dietary patterns affect approximately 10% of the population, leading to various gastrointestinal disorders.
-
-* **Limited Personalization:** Generic nutritional advice fails to address:
-  * Individual health conditions
-  * Cultural food preferences
-  * Regional cuisine variations
-  * Socioeconomic factors
-
-* **Accessibility Barriers:**
-  * **Economic:** 78% of the population cannot afford professional nutritional counseling
-  * **Temporal:** 65% lack sufficient time for comprehensive meal planning
-  * **Physical:** Existing solutions often exclude elderly users and those with disabilities
-  * **Financial:** 52% find nutritionally-optimal diets cost-prohibitive
-
-These factors contribute to reduced quality of life, increased healthcare expenditures, and significant health inequities across different population segments.
+Our core mission is to provide **personalized, explainable, accessible, and culturally relevant dietary recommendations** to help users improve their health and well-being. We address the critical need for tailored nutritional guidance in Vietnam, considering individual health conditions, preferences, budget, and regional culinary diversity.
 
 ---
 
-## Our Solution: NutriCare Agents
+## The Problem
 
-NutriCare Agents delivers a comprehensive solution through an innovative multi-modal, multi-agent AI platform:
+In Vietnam, inadequate nutrition contributes significantly to various health issues:
 
-### Core Features
+*   **Rising Non-Communicable Diseases:** Unhealthy diets (high in processed foods, low in fruits/vegetables) are linked to increasing rates of cardiovascular disease, diabetes, and cancer (74% of deaths in Vietnam).
+*   **Digestive Health Issues:** Poor dietary habits affect up to 10% of the population, leading to gastrointestinal problems.
+*   **Lack of Specific Guidance:** Generic advice like "eat less sugar" is insufficient. Users need detailed, personalized meal plans.
+*   **Taste vs. Health:** Healthy options often don't align with user preferences, hindering long-term adherence.
+*   **Culinary Knowledge Gap:** Many struggle to choose healthy, palatable meals, especially with busy schedules.
+*   **Data Relevance:** Existing apps often use foreign data, ignoring Vietnamese cuisine and regional variations.
+*   **Accessibility Barriers:**
+    *   **Cost:** 78% cannot afford professional nutritionists.
+    *   **Time:** 65% lack time for detailed meal planning.
+    *   **Inclusivity:** Current tools often exclude people with disabilities (especially visual impairments) and the elderly.
+    *   **Financial Constraints:** 52% find healthy diets unaffordable.
 
-1. **Personalized Recommendation Engine:** Utilizes Graph Neural Networks trained on extensive Vietnamese nutritional data (2000+ dishes, 500+ ingredients) and user health profiles to generate highly personalized meal recommendations.
-
-2. **Multi-Agent AI System:** Employs a sophisticated orchestration of specialized AI agents using Gemini and LangGraph:
-   * **Search Agent:** Grounds recommendations in verified nutritional science
-   * **RAG Agent:** Retrieves data from internal knowledge bases
-   * **Reasoning Agent:** Applies logical inference to nutritional decisions
-   * **Content Writer:** Crafts clear, culturally-appropriate explanations
-   * **Schedule Agent:** Generates optimized daily/weekly meal plans
-   * **UI/UX Agent:** Ensures accessible information presentation
-
-3. **Multi-Modal Interaction:** Supports:
-   * Text input/output
-   * Voice commands via Google Speech-to-Text
-   * Image processing for food recognition (future)
-   * Video generation for meal preparation guidance (upcoming)
-
-4. **Location-Aware Recommendations:** Integrates Google Maps JavaScript API and Places API to locate nearby restaurants and food vendors serving recommended dishes.
-
-5. **Budget Optimization:** Dynamically adjusts recommendations based on user-defined budget constraints, offering economical substitutions and seasonal adaptations.
-
-6. **Explainable AI:** Provides transparent rationales for all nutritional recommendations, citing authoritative sources including WHO guidelines and Vietnam National Institute of Nutrition data.
-
-### Responsible AI Implementation
-
-NutriCare Agents exemplifies responsible AI development:
-
-* **Equitable Access:** Designed for users across socioeconomic strata and ability levels
-* **Transparency:** Visual representation of decision-making processes
-* **Scientific Validity:** All recommendations grounded in peer-reviewed nutritional science
-* **User Privacy:** Local data processing with user-controlled data management
-* **Cultural Sensitivity:** Deep integration of Vietnamese culinary traditions and regional variations
-* **Continuous Improvement:** Feedback mechanisms for ongoing refinement
+These issues lead to increased disease rates, higher healthcare costs, reduced quality of life, and health inequities. There's a clear need for a solution that is personalized, culturally appropriate, inclusive, budget-conscious, and user-friendly.
 
 ---
 
-## Technology Architecture
+## Our Solution: NutriCare AI
 
-![Untitled-2025-03-26-2204](https://github.com/user-attachments/assets/7fca4518-9234-4a93-a87a-51e5ecfa3276)
+NutriCare AI tackles these challenges with a multi-faceted approach:
 
-### Core Technologies
+### Key Features
 
-#### Frontend
-* **Framework:** Next.js, React
-* **Styling:** Tailwind CSS
-* **Authentication:** Firebase Authentication
-* **Maps Integration:** Google Maps JavaScript API, Google Places API
-* **Languages:** TypeScript, HTML/CSS
+1.  **Personalized Recommendations:** Utilizes a Graph Neural Network (GNN) model trained on user health data (demographics, conditions, preferences) and extensive Vietnamese food data (2000+ dishes, 500+ ingredients) to suggest meals tailored to individual needs.
+2.  **Multi-Objective Optimization:** Employs Pareto optimization to balance three key goals: health suitability, taste preference, and nutritional diversity.
+3.  **Explainable AI (XAI):** Features a Responsible Multi-Agent System (using Gemini & LangGraph) that explains *why* specific recommendations are made, citing reliable sources (WHO, Vietnam National Institute of Nutrition) and detailing the impact on health metrics.
+    *   **Search Agent:** Fact-checks recommendations against trusted sources.
+    *   **RAG Agent:** Retrieves information from internal knowledge bases.
+    *   **Reasoning Agent:** Explains the decision-making process.
+    *   **Content Writer:** Formulates clear explanations.
+    *   **Schedule Agent:** Creates personalized daily/weekly meal plans, considering budget constraints (low/medium/high cost).
+    *   **UI/UX Agent:** Presents information effectively.
+4.  **Vietnamese Cuisine Focus:** Incorporates a rich database of local dishes and ingredients.
+5.  **Inclusive Design:** Supports voice commands (via Google Speech-to-Text) for accessibility, catering to users with visual impairments or mobility issues.
+6.  **Budget Optimization:** Suggests meal plans and ingredient substitutions based on user-defined financial constraints.
+7.  **Data Privacy:** User history is processed locally on the device to ensure privacy and personalization. Users can export or delete their data.
 
-#### Backend & Infrastructure
-* **Serverless Functions:** Firebase Cloud Functions
-* **Database:** Firebase Realtime Database
-* **Storage:** Google Cloud Storage
-* **Analytics:** Google BigQuery, Google Analytics
-* **Development Environment:** Firebase Studio (prototype development)
-* **Deployment:** Firebase Hosting
+### Responsible AI Principles
 
-#### AI & Machine Learning
-* **Foundation Models:** Gemini 2.0 Flash (fine-tuned for Vietnamese nutrition)
-* **AI Orchestration:** LangChain, GenKit, Google GenAI SDK
-* **Voice Interfaces:** Google Text-to-Speech API, Google Speech-to-Text API
-* **Multimodal Processing:** Gemini API for image understanding and generation
-* **Search & Grounding:** Gemini API for web search grounding
-* **Recommendation System:** FastAPI backend hosted on Vertex AI
-* **Data Processing:** Data mining and model training via Google Colab
+NutriCare AI is built with responsibility at its core:
 
-### System Architecture Diagram
+*   **Inclusivity:** Designed for everyone, including people with disabilities and the elderly.
+*   **Financial Equity:** Provides options for all income levels.
+*   **Transparency:** Visualizes the reasoning process behind recommendations.
+*   **Accountability:** Cites credible sources for nutritional information.
+*   **Clarity:** Explains the health impact of food choices.
+*   **Privacy & Security:** Prioritizes user data protection with on-device processing and user control.
+
+---
+
+## Technology Stack
+
+*   **Frontend:** Next.js, React, Tailwind CSS, HTML/CSS, TypeScript
+*   **Backend:** Google Cloud Functions, Firebase Authentication, TypeScript
+*   **Data Storage & Querying:** Firebase Realtime Database, Google Cloud Storage, BigQuery
+*   **AI & Machine Learning:**
+    *   **Recommendation Engine:** TensorFlow (for GNN - LightGCN, SignedGCN, SGSL), Vertex AI (Training & Deployment)
+    *   **Explainability & Interaction:** Langchain/LangGraph, Gemini 2.0 Flash (fine-tuned for Vietnamese & nutrition), Gemma (optional LLM)
+*   **Analytics:** Google Analytics
+*   **Accessibility:** Google Speech-to-Text
+*   **Future Integrations:** Google Cloud Vision API (food recognition), Google Maps (food sourcing)
+
+---
+
+## System Architecture
 
 ```mermaid
 graph TD
-    subgraph "User Interface Layer"
-        UI[Next.js Web Application]
-        Voice[Voice Interface]
-        Map[Google Maps Integration]
-        Auth[Google Authentication]
+    subgraph "User Interface (Next.js)"
+        UI[Web Application]
+        Voice[Voice Input]
     end
 
-    subgraph "API Gateway Layer"
-        APIGateway[Firebase Cloud Functions]
+    subgraph "Backend Services (Firebase/Google Cloud)"
+        Auth[Firebase Authentication]
+        API[Cloud Functions API]
+        RTDB[Firebase Realtime DB]
+        GCS[Cloud Storage]
+        BQ[BigQuery]
     end
 
-    subgraph "AI Orchestration Layer"
-        GenKit[GenKit / GenAI SDK]
-        LangChain[LangChain Orchestration]
-        AgentSystem[Multi-Agent System]
+    subgraph "AI Core (Vertex AI / Google Cloud)"
+        GNN[Recommendation Model (GNN on Vertex AI)]
+        MultiAgent[Multi-Agent System (LangGraph + Gemini/Gemma)]
+        STT[Speech-to-Text API]
+        Vision[Cloud Vision API (Future)]
     end
 
-    subgraph "AI Agents"
-        SearchAgent[Search Agent]
-        RAGAgent[RAG Agent]
-        ReasoningAgent[Reasoning Agent]
-        ContentAgent[Content Writer]
-        ScheduleAgent[Schedule Agent]
-        UXAgent[UI/UX Agent]
+    subgraph "External Data Sources"
+        WHO[WHO Guidelines]
+        NIN[Vietnam NIN Data]
+        FoodDB[Vietnamese Food DB]
+        UserHealth[User Health Data (NHANES/Surveys)]
     end
 
-    subgraph "AI Services"
-        Gemini[Gemini API]
-        STT[Speech-to-Text]
-        TTS[Text-to-Speech]
-        ImgGen[Image Generation]
-        VideoGen[Video Generation - Future]
-    end
+    UI -- User Input/Requests --> API
+    Voice -- Processed Text --> API
+    API -- Authentication --> Auth
+    API -- Data Storage/Retrieval --> RTDB
+    API -- User Analytics --> BQ
+    API -- File Storage --> GCS
+    API -- Recommendation Request --> GNN
+    API -- Explanation Request --> MultiAgent
+    API -- Voice Processing --> STT
 
-    subgraph "Recommendation System"
-        VertexAPI[Vertex AI Endpoint]
-        FastAPI[FastAPI Service]
-        GNN[Graph Neural Network]
-    end
+    GNN -- Trained Model --> Vertex AI Deployment
+    GNN -- Uses Data --> FoodDB
+    GNN -- Uses Data --> UserHealth
 
-    subgraph "External Services"
-        GMaps[Google Maps API]
-        Places[Google Places API]
-        WebSearch[Web Search Grounding]
-    end
+    MultiAgent -- Uses LLM --> Gemini/Gemma
+    MultiAgent -- Fact-Checking --> SearchAgent(Search Agent)
+    MultiAgent -- Internal Knowledge --> RAGAgent(RAG Agent)
+    MultiAgent -- Reasoning --> ReasoningAgent(Reasoning Agent)
+    MultiAgent -- Content Generation --> ContentWriter(Content Writer)
+    MultiAgent -- Planning --> ScheduleAgent(Schedule Agent)
 
-    subgraph "Data Layer"
-        Firebase[Firebase Realtime DB]
-        CloudStorage[Google Cloud Storage]
-        BigQuery[BigQuery Analytics]
-    end
+    SearchAgent -- Accesses --> WHO
+    SearchAgent -- Accesses --> NIN
+    RAGAgent -- Accesses --> InternalDocs(Internal Documents/DB)
 
-    UI --> APIGateway
-    Voice --> STT --> APIGateway
-    Auth --> UI
-    
-    APIGateway --> GenKit
-    APIGateway --> LangChain
-    APIGateway --> VertexAPI
-    APIGateway --> GMaps
-    APIGateway --> Places
-    
-    GenKit --> AgentSystem
-    LangChain --> AgentSystem
-    
-    AgentSystem --> SearchAgent
-    AgentSystem --> RAGAgent
-    AgentSystem --> ReasoningAgent
-    AgentSystem --> ContentAgent
-    AgentSystem --> ScheduleAgent
-    AgentSystem --> UXAgent
-    
-    SearchAgent --> WebSearch
-    RAGAgent --> Firebase
-    
-    AgentSystem --> Gemini
-    AgentSystem --> ImgGen
-    AgentSystem --> VideoGen
-    AgentSystem --> TTS
-    
-    VertexAPI --> FastAPI
-    FastAPI --> GNN
-    
-    APIGateway --> Firebase
-    APIGateway --> CloudStorage
-    APIGateway --> BigQuery
-    
-    Map --> UI
+    UI <-- Responses/Recommendations --- API
 
     %% Styling
     classDef frontend fill:#f9f,stroke:#333,stroke-width:2px;
     classDef backend fill:#ccf,stroke:#333,stroke-width:2px;
     classDef ai fill:#cfc,stroke:#333,stroke-width:2px;
     classDef data fill:#ffc,stroke:#333,stroke-width:2px;
-    classDef external fill:#fcf,stroke:#333,stroke-width:2px;
 
-    class UI,Voice,Auth,Map frontend;
-    class APIGateway,Firebase,CloudStorage,BigQuery backend;
-    class GenKit,LangChain,AgentSystem,Gemini,STT,TTS,ImgGen,VideoGen ai;
-    class SearchAgent,RAGAgent,ReasoningAgent,ContentAgent,ScheduleAgent,UXAgent ai;
-    class VertexAPI,FastAPI,GNN ai;
-    class GMaps,Places,WebSearch external;
+    class UI,Voice frontend;
+    class Auth,API,RTDB,GCS,BQ backend;
+    class GNN,MultiAgent,STT,Vision ai;
+    class WHO,NIN,FoodDB,UserHealth data;
+
 ```
+
+*This diagram provides a high-level overview. The Multi-Agent System involves complex interactions between specialized agents.*
 
 ---
 
-## Implementation Guide
+## Getting Started
 
-### Requirements
+Follow these instructions to set up and run the NutriCare AI project locally.
 
-* **Node.js:** v18.x or later
-* **Google Cloud Account:** With access to Gemini API and other Google Cloud services
-* **Firebase Account:** For authentication, database, and hosting services
-* **API Keys:**
-  * Gemini API
-  * Google Maps JavaScript API
-  * Google Places API
-  * Google Speech-to-Text/Text-to-Speech APIs
+### Prerequisites
 
-### Setup Process
+*   **Node.js:** Version 18.x or later (Download: [https://nodejs.org/](https://nodejs.org/))
+*   **npm** or **yarn:** Package manager (comes with Node.js)
+*   **Git:** Version control system (Download: [https://git-scm.com/](https://git-scm.com/))
+*   **Firebase Account:** For authentication and database services ([https://firebase.google.com/](https://firebase.google.com/))
+*   **Google Cloud Account:** For AI services (Vertex AI, Speech-to-Text, etc.) ([https://cloud.google.com/](https://cloud.google.com/))
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/technoob05/NutriCare_Agents
-   cd NutriCare_Agents
-   ```
+### Installation
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/technoob05/NutriAI.git # Replace with your actual repo URL if different
+    cd NutriAI # Navigate into the project directory
+    ```
 
-### Environment Configuration
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
 
-Create a `.env.local` file with the following configurations:
+### Environment Variables
 
-```plaintext
-# Required Configurations
-GOOGLE_GENAI_API_KEY=your_gemini_api_key
-GEMINI_API_KEY=your_gemini_api_key
-GOOGLE_MAPS_API_KEY=your_maps_api_key
+The application requires environment variables for connecting to Firebase and Google Cloud services.
 
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+1.  Create a `.env.local` file in the root of the project directory:
+    ```bash
+    touch .env.local
+    ```
 
-# Google Cloud Services
-GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
-VERTEX_AI_ENDPOINT=your_vertex_ai_endpoint
-```
+2.  Add the necessary environment variables to `.env.local`. You will need to obtain these keys and configuration details from your Firebase and Google Cloud project settings:
 
-### Deployment
+    ```plaintext
+    # Firebase Configuration (Get from Firebase Project Settings > General > Your apps > SDK setup and configuration)
+    NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_API_KEY
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=YOUR_STORAGE_BUCKET
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_MESSAGING_SENDER_ID
+    NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_APP_ID
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID # Optional
 
-**Development Environment:**
-```bash
-npm run dev
-```
+    # Google Cloud Configuration (Credentials for Vertex AI, Speech-to-Text, etc.)
+    # How you configure Google Cloud access depends on the specific setup (e.g., service account key file path, Application Default Credentials)
+    # Example for a service account key file:
+    # GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
 
-**Production Build:**
-```bash
-npm run build
-npm run start
-```
+    # Other API Keys (if any)
+    # NEXT_PUBLIC_SOME_OTHER_API_KEY=YOUR_OTHER_KEY
+    ```
 
-**Firebase Deployment:**
-```bash
-firebase login
-firebase deploy
-```
+    **Important:** Ensure your Google Cloud environment is properly authenticated (e.g., via `gcloud auth application-default login` or by setting `GOOGLE_APPLICATION_CREDENTIALS`).
 
----
+### Running the Application
 
-## User Experience
+1.  **Start the development server:**
+    ```bash
+    npm run dev
+    # or
+    yarn dev
+    ```
 
-The NutriCare Agents platform provides an intuitive, multi-modal user journey:
-
-1. **Onboarding:** Users create accounts via Google Authentication or email
-2. **Health Profile:** Users provide health information and dietary preferences
-3. **Interaction Methods:**
-   * Text-based queries
-   * Voice commands
-   * Image uploads (future feature)
-4. **Personalized Recommendations:**
-   * Daily/weekly meal plans
-   * Specific dish recommendations
-   * Nutritional insights
-5. **Location Services:** Find nearby restaurants serving recommended dishes
-6. **Explanations:** Receive detailed rationales for nutritional recommendations
-7. **Budget Adaptation:** Adjust plans based on financial constraints
-8. **Data Management:** Export or delete personal data as needed
+2.  Open your browser and navigate to `http://localhost:3000` (or the port specified in the console).
 
 ---
 
-## Roadmap & Future Development
+## Usage Guide
 
-NutriCare Agents has an ambitious development roadmap:
-
-**Near-Term (6 Months):**
-* **Video Generation:** AI-generated recipe videos
-* **Image Recognition:** Food photo analysis for nutritional content
-* **Community Features:** Recipe sharing and peer support
-
-**Medium-Term (12-18 Months):**
-* **Wearable Integration:** Connection with Google Fit and other health trackers
-* **Extended Health Conditions:** Support for 50+ medical conditions
-* **Regional Specialization:** North, Central, and South Vietnamese cuisine variants
-
-**Long-Term Vision:**
-* **Clinical Partnerships:** Integration with healthcare providers
-* **Research Platform:** Anonymized data for nutrition research
-* **International Adaptation:** Frameworks for other cultural contexts
-
-**Impact Goals:**
-* Reduce nutrition-related healthcare costs by 18% within 3 years
-* Improve quality of life metrics for users with chronic conditions by 30%
-* Decrease food waste by 25% through optimized meal planning
-* Support sustainable food systems through local ingredient recommendations
+1.  **Registration/Login:** Create an account or log in using Firebase Authentication.
+2.  **Profile Setup:** Provide initial health information (age, gender, health conditions, dietary restrictions, preferences, budget level). This helps personalize recommendations.
+3.  **Get Recommendations:** Request meal plans or specific dish suggestions.
+4.  **Interact with AI:**
+    *   Ask for explanations about why a meal was recommended.
+    *   Request modifications based on taste or ingredient availability.
+    *   Use voice commands for hands-free interaction.
+5.  **View Meal Plans:** Access daily or weekly meal schedules generated by the Schedule Agent.
+6.  **Explore Food Database:** Browse information about Vietnamese dishes and ingredients.
 
 ---
 
-## Development Team
+## Future Development
 
-**404 Brain Not Found Team:**
+Our roadmap includes expanding NutriCare AI's capabilities:
 
-* **Nguyễn Lâm Phú Quý:** Project Lead / Product Manager / Data Scientist
-* **Huỳnh Trung Kiệt:** AI Engineer (Recommendation Systems)
-* **Đào Sỹ Duy Minh:** AI Engineer (Multi-Agent Systems)
-* **Bàng Mỹ Linh:** AI Engineer (NLP Specialist)
-* **Phan Bá Thanh:** Data Engineer / Infrastructure Specialist
+*   **Wider Scope:**
+    *   Support for 50+ health conditions.
+    *   Regional customization (North, Central, South Vietnam).
+    *   Versions for specific demographics (children, pregnant women, athletes).
+    *   Community platform for sharing recipes and experiences.
+*   **Deeper Analysis:**
+    *   Budget optimization with seasonal/local ingredient substitutions.
+    *   Micronutrient analysis (vitamins, minerals).
+    *   **Vision Integration:** Analyze nutrition from food photos (Google Cloud Vision API).
+    *   **Smart Device Integration:** Connect with wearables like Google Pixel Watch (via Google Fit).
+    *   **Image Generation:** Create illustrative images of recommended dishes (e.g., using Gemini API).
+*   **Platform Expansion:**
+    *   API for third-party integration.
+    *   Clinical versions for hospitals and clinics.
+
+**Project Goals & Impact:**
+
+*   **Improve Public Health:** Aim to reduce nutrition-related disease costs by 15% in 3 years and improve quality of life for chronic patients by 25%.
+*   **Promote Social Equity:** Provide high-quality nutritional advice to all, regardless of income or ability.
+*   **Empower Users:** Enable individuals to take control of their health through informed dietary choices.
+*   **Sustainability:** Reduce food waste by 30% through smarter planning and promote local/seasonal food consumption.
 
 ---
 
-## Contributions
+## Meet the Team (404 Brain Not Found)
 
-We welcome contributions from the community. Please review our [contribution guidelines](CONTRIBUTING.md) before submitting pull requests.
+*   **Nguyễn Lâm Phú Quý:** Product Manager / Data Scientist
+*   **Huỳnh Trung Kiệt:** AI Engineer
+*   **Đào Sỹ Duy Minh:** AI Engineer
+*   **Bàng Mỹ Linh:** AI Engineer
+*   **Phan Bá Thanh:** Data Engineer
+
+---
+
+## Contributing
+
+We welcome contributions! Please read our `CONTRIBUTING.md` file (if available) for guidelines on how to contribute to the project. <!-- Add a CONTRIBUTING.md if you plan to accept contributions -->
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. <!-- Create a LICENSE file with MIT License text -->
 
 ---
 
-## Contact Information
+## Contact
 
-* **Project Lead:** Nguyễn Lâm Phú Quý
-* **Email:** [nguyenlamphuquykh@gmail.com](mailto:nguyenlamphuquykh@gmail.com)
-* **Phone:** 0392794728
-* **Team Portfolios:** [Team Drive Folder](https://drive.google.com/drive/folders/11mYK9Y27pWBh4bT4Tzd7kN8u9u6O-PU3?usp=sharing)
-* **GitHub:** [technoob05](https://github.com/technoob05)
-* **Project Repository:** [NutriCare_Agents](https://github.com/technoob05/NutriCare_Agents)
+*   **Project Lead:** Nguyễn Lâm Phú Quý
+*   **Email:** [nguyenlamphuquykh@gmail.com](mailto:nguyenlamphuquykh@gmail.com)
+*   **Phone:** 0392794728
+*   **CVs/Portfolio:** [Team Drive Folder](https://drive.google.com/drive/folders/11mYK9Y27pWBh4bT4Tzd7kN8u9u6O-PU3?usp=sharing)
+*   **GitHub:** [technoob05](https://github.com/technoob05)

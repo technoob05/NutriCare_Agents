@@ -42,7 +42,12 @@ import {
     GenerateMenuFromPreferencesOutput,
     StepTrace,
 } from '@/ai/flows/generate-menu-from-preferences';
-import { suggestMenuModificationsBasedOnFeedback } from '@/ai/flows/suggest-menu-modifications-based-on-feedback';
+// import { suggestMenuModificationsBasedOnFeedback } from '@/ai/flows/suggest-menu-modifications-based-on-feedback'; // Will be replaced by handleMenuFollowup
+import {
+    handleMenuFollowup,
+    HandleMenuFollowupInput,
+    HandleMenuFollowupOutput
+} from '@/ai/flows/handle-menu-followup'; // <-- Import the new flow
 
 // --- Hooks ---
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +60,7 @@ import { cn } from "@/lib/utils";
 
 // --- Constants ---
 const MAX_PREFERENCE_LENGTH = 250;
+const REGENERATE_ACTION_PREFIX = "Regenerate menu"; // Prefix to identify regeneration actions
 // Removed static initial message, will be set dynamically
 const QUICK_REPLIES = ["Bữa sáng nhanh gọn", "Thực đơn ít calo", "Món chay dễ làm", "Tăng cơ giảm mỡ", "Tiệc cuối tuần"];
 
@@ -66,9 +72,12 @@ interface SuggestMenuModificationsOutput {
 interface ChatMessage {
     id: number;
     text?: string;
-    type: 'user' | 'bot' | 'component' | 'error' | 'system' | 'trace_display' | 'suggestion_display' | 'suggestion_chip' | 'export_display'; // Added 'export_display'
+    // Added 'action_chips', removed 'suggestion_display'
+    type: 'user' | 'bot' | 'component' | 'error' | 'system' | 'trace_display' | 'suggestion_chip' | 'export_display' | 'action_chips';
     traceData?: StepTrace[];
-    suggestionData?: SuggestMenuModificationsOutput;
+    // suggestionData?: SuggestMenuModificationsOutput; // Replaced by reasoning/actions
+    reasoning?: string; // Added for the new flow's reasoning output
+    suggestedActions?: string[]; // Added for the new flow's suggested actions
     searchSuggestionHtml?: string;
     exportMarkdown?: string;
     menuData?: GenerateMenuFromPreferencesOutput | null; // Add field to store menu data
@@ -87,9 +96,10 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
     const [menuType, setMenuType] = useState<'daily' | 'weekly'>('daily');
     const [menuResponseData, setMenuResponseData] = useState<GenerateMenuFromPreferencesOutput | null>(null);
     const [feedback, setFeedback] = useState<string>('');
-    const [menuModifications, setMenuModifications] = useState<SuggestMenuModificationsOutput | null>(null);
+    // const [menuModifications, setMenuModifications] = useState<SuggestMenuModificationsOutput | null>(null); // Removed, handled by new flow
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]); // Initialize empty, will set initial message in useEffect
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false); // For initial generation
+    const [isProcessingFeedback, setIsProcessingFeedback] = useState<boolean>(false); // Separate loading state for feedback
     const [isListeningPreferences, setIsListeningPreferences] = useState(false);
     const [isListeningFeedback, setIsListeningFeedback] = useState(false);
     const [isPreferenceSectionOpen, setIsPreferenceSectionOpen] = useState(true); // Start open
@@ -242,25 +252,29 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
     // --- Core Logic Functions ---
 
-    // Add Message (Updated)
+    // Add Message (Updated for new flow)
     const addMessage = useCallback((
         type: ChatMessage['type'],
         text?: string,
         traceData?: StepTrace[],
-        suggestionData?: SuggestMenuModificationsOutput,
+        // suggestionData?: SuggestMenuModificationsOutput, // Removed
+        reasoning?: string, // Added
+        suggestedActions?: string[], // Added
         searchSuggestionHtml?: string,
         exportMarkdown?: string,
-        menuData?: GenerateMenuFromPreferencesOutput | null // Add menuData parameter
+        menuData?: GenerateMenuFromPreferencesOutput | null
     ) => {
         const newMessage: ChatMessage = {
             id: Date.now() + Math.random(),
             type,
             text,
             traceData,
-            suggestionData,
+            // suggestionData, // Removed
+            reasoning, // Added
+            suggestedActions, // Added
             searchSuggestionHtml,
             exportMarkdown,
-            menuData, // Store menu data in the message
+            menuData,
         };
 
         // --- Dynamic Title Logic ---
@@ -303,9 +317,9 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
             return;
         }
 
-        setIsLoading(true);
+        setIsLoading(true); // Still use general isLoading for initial generation
         setMenuResponseData(null);
-        setMenuModifications(null);
+        // setMenuModifications(null); // Removed
         setFeedback('');
         addMessage('user', `Tạo thực đơn ${menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'}: ${trimmedPreferences}`);
 
@@ -330,7 +344,8 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
             if (response?.menu) {
                 // Pass the response data when adding the component message
-                addMessage('component', undefined, undefined, undefined, undefined, undefined, response);
+                // Corrected addMessage call for 'component' type
+                addMessage('component', undefined, undefined, undefined, undefined, undefined, undefined, response);
                 // *** NEW: Auto-hide preference section on successful generation ***
                 setIsPreferenceSectionOpen(false);
             } else {
@@ -338,7 +353,8 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 addMessage('error', errorMessage);
             }
             if (response?.searchSuggestionHtml) {
-                 addMessage('suggestion_chip', undefined, undefined, undefined, response.searchSuggestionHtml);
+                 // Corrected addMessage call for 'suggestion_chip' type
+                 addMessage('suggestion_chip', undefined, undefined, undefined, undefined, response.searchSuggestionHtml);
             }
 
         } catch (error: any) {
@@ -346,72 +362,150 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
             addMessage('error', `Lỗi hệ thống khi tạo thực đơn: ${error.message || 'Vui lòng thử lại.'}`);
             // Don't hide the preference section on error, user might want to retry/edit
         } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Stop general loading indicator
         }
-        // Added dependencies: user, setIsLoading, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen
-    }, [preferences, menuType, addMessage, toast, user, setIsLoading, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen]);
+        // Removed setMenuModifications from dependencies
+    }, [preferences, menuType, addMessage, toast, user, setIsLoading, setMenuResponseData, setFeedback, setIsPreferenceSectionOpen]);
 
-    // Suggest Modifications Function (Refined - Unchanged)
-    const suggestModifications = useCallback(async () => {
-        // ... (suggest modifications logic remains the same)
-        const trimmedFeedback = feedback.trim();
-        if (!trimmedFeedback) {
-            toast({ title: "Thiếu phản hồi", description: "Vui lòng nhập phản hồi của bạn về thực đơn.", variant: "destructive" });
+
+    // --- Handle Feedback Submission (Replaces suggestModifications) ---
+    const handleFeedbackSubmit = useCallback(async () => {
+        const userMessage = feedback.trim();
+        if (!userMessage) {
+            toast({ title: "Thiếu nội dung", description: "Vui lòng nhập câu hỏi hoặc phản hồi của bạn.", variant: "destructive" });
             return;
         }
         if (!menuResponseData?.menu) {
-            toast({ title: "Thiếu thực đơn", description: "Chưa có thực đơn để đưa ra phản hồi.", variant: "destructive" });
+            // This shouldn't happen if the feedback box is only shown when there's a menu, but good to check.
+            toast({ title: "Thiếu thực đơn", description: "Chưa có thực đơn để trò chuyện.", variant: "destructive" });
             return;
         }
 
-        setIsLoading(true);
-        addMessage('user', `Phản hồi: ${trimmedFeedback}`);
+        setIsProcessingFeedback(true); // Use separate loading state
+        addMessage('user', userMessage); // Add user message immediately
+        setFeedback(''); // Clear input immediately
 
         try {
-            const menuString = JSON.stringify(menuResponseData.menu);
-            // Pass user context to the feedback flow as well
-            const modificationsResult = await suggestMenuModificationsBasedOnFeedback({
-                menu: menuString,
-                feedback: trimmedFeedback,
-                userContext: { // Add user context object
+            // Prepare chat history for the flow (limit length if needed)
+            const historyForFlow = chatHistory
+                .filter(msg => ['user', 'bot', 'system'].includes(msg.type) && msg.text) // Filter relevant types with text
+                .slice(-10) // Limit to last 10 messages for context window
+                .map(msg => ({
+                    // Ensure role is explicitly 'user' or 'model' for type safety
+                    role: (msg.type === 'user' ? 'user' : 'model') as 'user' | 'model',
+                    content: msg.text!,
+                }));
+
+            const flowInput: HandleMenuFollowupInput = {
+                currentMenu: JSON.stringify(menuResponseData.menu), // Pass current menu
+                chatHistory: historyForFlow,
+                userMessage: userMessage,
+                userPreferences: preferences, // Pass general preferences
+                userContext: {
                     username: user?.username,
-                    // TODO: Add other relevant user data here
+                    // Add other context if available
                 }
-            });
+            };
 
-            if (modificationsResult && (modificationsResult.reasoning || modificationsResult.modifiedMenu)) {
-                setMenuModifications(modificationsResult);
-                addMessage('suggestion_display', undefined, undefined, modificationsResult);
-                toast({ title: "Đã có gợi ý", description: "Xem chi tiết gợi ý chỉnh sửa trong khung chat." });
-                // setFeedback(''); // Optional: Clear feedback after suggestion
-            } else {
-                addMessage('system', "Rất tiếc, tôi chưa thể đưa ra gợi ý chỉnh sửa dựa trên phản hồi này.");
-            }
+            const result = await handleMenuFollowup(flowInput);
+
+            // Add the AI's response, reasoning, and actions
+            addMessage(
+                'bot', // Use 'bot' type for the main response
+                result.responseMessage,
+                undefined, // No trace data for this flow yet
+                result.reasoning,
+                result.suggestedActions
+                // No searchSuggestionHtml, exportMarkdown, or menuData here
+            );
+
         } catch (error: any) {
-            console.error("Suggest Modifications Error:", error);
-            addMessage('error', `Lỗi khi xử lý phản hồi: ${error.message || 'Vui lòng thử lại.'}`);
+            console.error("Handle Feedback Error:", error);
+            addMessage('error', `Lỗi khi xử lý yêu cầu: ${error.message || 'Vui lòng thử lại.'}`);
         } finally {
-            setIsLoading(false);
+            setIsProcessingFeedback(false); // Stop feedback processing indicator
         }
-        // Added dependencies: user, setIsLoading, setMenuModifications, setFeedback
-    }, [feedback, menuResponseData, addMessage, toast, user, setIsLoading, setMenuModifications, setFeedback]);
+    }, [
+        feedback,
+        menuResponseData,
+        chatHistory,
+        preferences,
+        user,
+        addMessage,
+        toast,
+        setFeedback,
+        setIsProcessingFeedback // Added dependencies
+    ]);
 
-    // Handle Quick Reply (Optimized - Unchanged)
+    // Handle Quick Reply (Updated for new loading state)
     const handleQuickReply = useCallback((reply: string) => {
-        // ... (quick reply logic remains the same)
-        if (isLoading) return;
+        if (isLoading || isProcessingFeedback) return; // Check both loading states
         setPreferences(reply);
-        // Set timeout ensures state update is processed before triggering async call.
         setTimeout(() => {
             generateMenu();
         }, 0);
-    }, [isLoading, generateMenu, setPreferences]); // Added setPreferences
+    }, [isLoading, isProcessingFeedback, generateMenu, setPreferences]); // Added isProcessingFeedback
 
     // --- Callback for Ingredient Export ---
     const handleExportIngredientsCallback = useCallback((markdown: string) => {
         addMessage('export_display', undefined, undefined, undefined, undefined, markdown);
         toast({ title: "Đã xuất Checklist", description: "Danh sách nguyên liệu đã được thêm vào khung chat." });
     }, [addMessage, toast]);
+
+    // --- Handle Clicking Suggested Action ---
+    const handleActionClick = useCallback(async (actionText: string) => {
+        if (isLoading || isProcessingFeedback) return; // Prevent clicks while processing
+
+        console.log("Action clicked:", actionText);
+        addMessage('user', `(Đã chọn: ${actionText})`); // Add user action to history
+
+        if (actionText.startsWith(REGENERATE_ACTION_PREFIX)) {
+            // --- Trigger Regeneration ---
+            setIsProcessingFeedback(true); // Use feedback loader for regeneration too
+            toast({ title: "Đang tạo lại thực đơn...", description: "Vui lòng chờ trong giây lát." });
+
+            // TODO: Implement actual regeneration logic
+            // This might involve calling a dedicated regeneration flow
+            // or adapting the 'generateMenuFromPreferences' flow, passing
+            // the current menu and the full chat history as context.
+            // For now, simulate a delay and show a message.
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+
+            // Example: Call a hypothetical regeneration flow
+            /*
+            try {
+                const historyForFlow = chatHistory.map(...) // Prepare history
+                const regenInput = {
+                    currentMenu: JSON.stringify(menuResponseData?.menu),
+                    chatHistory: historyForFlow,
+                    userPreferences: preferences,
+                    userContext: { username: user?.username }
+                };
+                const regeneratedMenuData = await regenerateMenuFlow(regenInput); // Hypothetical flow
+                setMenuResponseData(regeneratedMenuData); // Update state
+                addMessage('component', undefined, undefined, undefined, undefined, undefined, undefined, undefined, regeneratedMenuData); // Display new menu
+            } catch (error: any) {
+                console.error("Regeneration Error:", error);
+                addMessage('error', `Lỗi khi tạo lại thực đơn: ${error.message}`);
+            } finally {
+                setIsProcessingFeedback(false);
+            }
+            */
+
+            // Placeholder message for now:
+            addMessage('system', `Đã ghi nhận yêu cầu tạo lại thực đơn với thay đổi "${actionText}". Tính năng này đang được phát triển.`);
+            setIsProcessingFeedback(false);
+
+        } else {
+            // Handle other actions (e.g., pre-fill input, ask specific question)
+            // For now, just allow user to continue typing.
+            // You could potentially pre-fill the feedback input:
+            // setFeedback(actionText);
+            toast({ title: "Tiếp tục trò chuyện", description: "Bạn có thể hỏi thêm hoặc nhập yêu cầu mới." });
+        }
+
+    }, [isLoading, isProcessingFeedback, addMessage, toast, chatHistory, menuResponseData, preferences, user]); // Added dependencies
+
 
     // --- Helper for Copy Button ---
     const handleCopy = useCallback((textToCopy: string | undefined) => {
@@ -537,7 +631,7 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 }
                 // Reset other states when loading a chat
                 // setMenuResponseData(null); // Redundant now
-                setMenuModifications(null);
+                // setMenuModifications(null); // Removed
                 setFeedback('');
                 setIsPreferenceSectionOpen(false); // Usually hide preferences when loading old chat
 
@@ -547,7 +641,7 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 // Initial message is now handled by the dedicated useEffect based on user
                 // setChatHistory([{ id: Date.now(), text: INITIAL_SYSTEM_MESSAGE, type: "system" }]); // Removed
                 setMenuResponseData(null);
-                setMenuModifications(null);
+                // setMenuModifications(null); // Removed
                 setFeedback('');
                 setIsPreferenceSectionOpen(true); // Show preferences for a new chat
             }
@@ -556,7 +650,8 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
         loadChat();
         // Dependency: chatId. Re-run when the user clicks a different chat link.
         // Added setChatHistory back as it's needed if the load fails and we set a new history. The initial message effect guards against loops.
-    }, [chatId, setMenuResponseData, setMenuModifications, setFeedback, setIsPreferenceSectionOpen, setChatHistory]);
+        // Removed setMenuModifications from dependencies
+    }, [chatId, setMenuResponseData, setFeedback, setIsPreferenceSectionOpen, setChatHistory]);
     // --- End Load/Initialize Chat History Effect ---
 
     // --- Effect to Save Chat History to localStorage on Change ---
@@ -581,27 +676,47 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
     // --- Render Logic ---
 
-    // Refined Message Rendering Function (Updated for Export Display)
+    // Define style constants outside the render function for broader scope
+    const botMessageContainerClass = "flex items-start gap-2.5";
+    const botMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-tl-none";
+    const userMessageContainerClass = "flex items-start gap-2.5 justify-end";
+    const userMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-blue-600 text-white rounded-tr-none";
+
+    // Refined Message Rendering Function (Updated for new flow)
     const renderMessageContent = (message: ChatMessage) => {
-        const isBotOrSystem = message.type === 'bot' || message.type === 'system' || message.type === 'component' || message.type === 'trace_display' || message.type === 'suggestion_display' || message.type === 'suggestion_chip' || message.type === 'error' || message.type === 'export_display'; // Added export_display
-        const botMessageContainerClass = "flex items-start gap-2.5";
-        const botMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-tl-none";
-        const userMessageContainerClass = "flex items-start gap-2.5 justify-end";
-        const userMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-blue-600 text-white rounded-tr-none";
+        // Corrected isBotOrSystem check - includes 'bot' and other relevant types
+        const isBotOrSystem = ['bot', 'system', 'component', 'trace_display', 'suggestion_chip', 'error', 'export_display', 'action_chips'].includes(message.type);
+        // Style constants are now defined outside this function
 
         // Removed handleCopy definition from here
 
         switch (message.type) {
             case 'user':
                 return message.text ? ( <div className={userMessageContainerClass}><div className={userMessageBubbleClass}><pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre></div><User className="w-6 h-6 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1" /></div> ) : null;
-            case 'bot':
-                 return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={botMessageBubbleClass}><pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre></div></div> ) : null;
+            case 'bot': // Updated 'bot' case to handle reasoning
+                 return message.text ? (
+                     <div className={botMessageContainerClass}>
+                         <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                         <div className={cn(botMessageBubbleClass, "space-y-3")}>
+                             {/* Main Response */}
+                             <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
+                             {/* Reasoning Section (Optional) */}
+                             {message.reasoning && (
+                                 <details className="text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-600 pt-2 mt-2">
+                                     <summary className="cursor-pointer font-medium hover:text-gray-800 dark:hover:text-gray-200">Xem quá trình xử lý</summary>
+                                     <pre className="whitespace-pre-wrap font-sans text-xs mt-1 pl-2">{message.reasoning}</pre>
+                                 </details>
+                             )}
+                             {/* Suggested Actions are now rendered separately below */}
+                         </div>
+                     </div>
+                 ) : null;
             case 'system':
                 return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><Alert variant="default" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm"><Info className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Thông báo</AlertTitle><AlertDescription className="text-sm">{message.text}</AlertDescription></Alert></div> ) : null;
             case 'error':
                  return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" /><Alert variant="destructive" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm"><AlertCircle className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Lỗi</AlertTitle><AlertDescription className="text-sm">{message.text}</AlertDescription></Alert></div> ) : null;
             case 'trace_display':
-                // Pass isLoading to AgentProcessVisualizer
+                // Pass isLoading (initial generation) to AgentProcessVisualizer
                 return message.traceData ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1 opacity-50" /><div className={cn(botMessageBubbleClass, "bg-gray-50 dark:bg-gray-700/50 border border-border/50")}><AgentProcessVisualizer trace={message.traceData} isProcessing={isLoading} /></div></div> ) : null;
             case 'component':
                 // Use message.menuData here instead of menuResponseData state
@@ -610,11 +725,13 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                     const greetingText = `Tuyệt vời! Dựa trên yêu cầu của bạn, tôi đã chuẩn bị xong thực đơn ${message.menuData.menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'} rồi đây:`; // Use menuType from message data
                     return ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "space-y-3")}><p className="text-sm">{greetingText}</p><div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 overflow-hidden mt-2"><InteractiveMenu menuData={{ menu: message.menuData.menu, menuType: message.menuData.menuType, }} onExportIngredients={handleExportIngredientsCallback} /></div>{message.menuData.feedbackRequest && ( <p className="text-sm italic mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">{message.menuData.feedbackRequest}</p> )}</div></div> );
                 } return null; // Added explicit return null
-            case 'suggestion_display':
-                return message.suggestionData ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700")}><div className="flex items-center text-sm font-medium mb-2"><Info className="h-4 w-4 mr-2 flex-shrink-0" /><span>Gợi ý chỉnh sửa từ AI</span></div>{message.suggestionData.reasoning && ( <div className="mb-2"><p className="text-sm font-semibold">Lý do:</p><p className="text-sm">{message.suggestionData.reasoning}</p></div> )}{message.suggestionData.modifiedMenu && ( <div><p className="text-sm font-semibold mb-1">Thực đơn đề xuất (JSON):</p><ScrollArea className="max-h-48 w-full rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 p-2"><pre className="whitespace-pre-wrap font-mono text-xs text-gray-700 dark:text-gray-300 break-all">{message.suggestionData.modifiedMenu}</pre></ScrollArea></div> )}</div></div> ) : null;
+            // case 'suggestion_display': // This case is fully removed as it's handled by 'bot' type now
+            //     return null;
             case 'suggestion_chip':
                  return message.searchSuggestionHtml ? ( <div className={botMessageContainerClass}><Search className="w-6 h-6 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 opacity-80" /><div className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl" dangerouslySetInnerHTML={{ __html: message.searchSuggestionHtml }} /></div> ) : null;
-            case 'export_display': // <-- New case for exported markdown
+            // case 'action_chips': // This case is also removed as chips are rendered below bot messages
+            //      return null;
+            case 'export_display':
                 return message.exportMarkdown ? (
                     <div className={botMessageContainerClass}>
                         <Bot className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-1" />
@@ -782,18 +899,36 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 </div> {/* End Collapsible Wrapper */}
 
                 {/* --- Chat History Area --- */}
-                {/* flex-1 ensures it takes remaining space. Added pt-0 to remove gap when preferences are hidden */}
-                {/* Assign the ref to the ScrollArea */}
                 <ScrollArea ref={chatScrollAreaRef} className="flex-1 p-4 pt-0 bg-white dark:bg-gray-800/50">
-                    {isLoading && !menuResponseData && ( // Show thinking only during initial generation
+                    {/* Show thinking animation for initial generation OR feedback processing */}
+                    {(isLoading && !menuResponseData) || isProcessingFeedback ? (
                          <div className="flex justify-center py-4">
                             <ThinkingAnimation />
                          </div>
-                    )}
+                    ) : null}
                     <div className="space-y-5 max-w-4xl mx-auto pb-4">
                         {chatHistory.map((message) => (
-                            <div key={message.id} className="flex w-full">
+                            <div key={message.id} className="flex w-full flex-col"> {/* Wrap in flex-col */}
                                 {renderMessageContent(message)}
+                                {/* Render action chips immediately after the bot message they belong to */}
+                                {message.type === 'bot' && message.suggestedActions && message.suggestedActions.length > 0 && (
+                                    <div className={cn(botMessageContainerClass, "ml-8 mt-2")}> {/* Indent slightly & add margin */}
+                                        <div className="flex flex-wrap gap-2">
+                                            {message.suggestedActions.map((action, index) => (
+                                                <Button
+                                                    key={index}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-xs h-7"
+                                                    onClick={() => handleActionClick(action)}
+                                                    disabled={isLoading || isProcessingFeedback} // Disable when any loading is active
+                                                >
+                                                    {action}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
                         <div ref={chatEndRef} className="h-1" />
@@ -801,32 +936,32 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 </ScrollArea>
 
                 {/* --- Feedback Input Area (Sticky Bottom) --- */}
-                {/* Logic for hiding/showing based on menu data remains */}
                 <div className={cn(
                     "p-3 md:p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0 z-10 shadow- ऊपर-md transition-opacity duration-300 ease-in-out",
-                    menuResponseData?.menu ? "opacity-100" : "opacity-0 pointer-events-none h-0 p-0 border-0"
+                    menuResponseData?.menu ? "opacity-100" : "opacity-0 pointer-events-none h-0 p-0 border-0" // Show only if menu exists
                 )}>
                     <div className="max-w-4xl mx-auto">
                         <div className="flex items-center gap-2">
                             <div className="relative flex-grow">
-                                <label htmlFor="feedback-input" className="sr-only">Nhập phản hồi</label>
+                                <label htmlFor="feedback-input" className="sr-only">Nhập phản hồi hoặc câu hỏi</label>
                                 <Input
                                     id="feedback-input"
-                                    placeholder={menuModifications ? "Đã có gợi ý. Tạo lại menu nếu muốn thay đổi." : "Nhập phản hồi hoặc yêu cầu chỉnh sửa..."}
+                                    placeholder={isProcessingFeedback ? "Đang xử lý..." : "Nhập phản hồi hoặc câu hỏi..."} // Updated placeholder
                                     value={feedback}
                                     onChange={handleFeedbackChange}
                                     className="flex-grow resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 pr-10"
-                                    disabled={isLoading || !!menuModifications}
+                                    disabled={isLoading || isProcessingFeedback} // Disable if any loading
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey && !isLoading && feedback.trim() && !menuModifications) {
+                                        // Trigger on Enter, check loading states
+                                        if (e.key === 'Enter' && !e.shiftKey && !isLoading && !isProcessingFeedback && feedback.trim()) {
                                             e.preventDefault();
-                                            suggestModifications();
+                                            handleFeedbackSubmit(); // Call the new handler
                                         }
                                     }}
                                 />
                                 <Button
                                     onClick={toggleFeedbackSpeech}
-                                    disabled={isLoading || !!menuModifications}
+                                    disabled={isLoading || isProcessingFeedback} // Disable if any loading
                                     size="icon"
                                     variant="ghost"
                                     className={cn(
@@ -839,25 +974,21 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                                 </Button>
                             </div>
                             <Button
-                                onClick={suggestModifications}
-                                disabled={isLoading || !feedback.trim() || !!menuModifications}
+                                onClick={handleFeedbackSubmit} // Call the new handler
+                                disabled={isLoading || isProcessingFeedback || !feedback.trim()} // Disable if loading or no text
                                 size="icon"
                                 className="rounded-full shrink-0 w-9 h-9"
-                                aria-label="Gửi phản hồi"
+                                aria-label="Gửi" // Updated label
                             >
-                                {/* Show loader only when suggesting modifications */}
-                                {isLoading && !!feedback.trim() ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+                                {/* Show loader only when processing feedback */}
+                                {isProcessingFeedback ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
                             </Button>
                         </div>
-                        {menuModifications && (
-                            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-1.5">
-                                Đã nhận được gợi ý. Để yêu cầu khác, vui lòng tạo lại thực đơn.
-                            </p>
-                        )}
+                        {/* Removed the message about suggestions */}
                     </div>
                 </div>
             </div> {/* End Main Content Area */}
-        </div> // End Flex Container - Closing tag added
+        </div>
     );
 };
 
