@@ -9,8 +9,6 @@
 
 ## ✨ **[https://studio--vietnamese-diet-planner.us-central1.hosted.app/](https://studio--vietnamese-diet-planner.us-central1.hosted.app/)** ✨
 
-![image](https://github.com/user-attachments/assets/daa563a0-1f77-44b9-a463-6883c7dd75e6)
-
 ## 🧠 Backend API
 Toàn bộ logic về phân tích dinh dưỡng và hệ thống đề xuất thực phẩm được xử lý bởi backend riêng biệt, bạn có thể tham khảo tại đây:
 👉 **[Food Recommendation API Repository](https://github.com/trungkiet2005/NutriCare-Recommend-API)**  
@@ -319,6 +317,29 @@ We welcome contributions! Please read our `CONTRIBUTING.md` file (if available) 
 
 ---
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. <!-- Create a LICENSE file with MIT License text -->
+
+---
+
+## Contact
+
+*   **Project Lead:** Nguyễn Lâm Phú Quý
+*   **Email:** [nguyenlamphuquykh@gmail.com](mailto:nguyenlamphuquykh@gmail.com)
+*   **Phone:** 0392794728
+*   **CVs/Portfolio:** [Team Drive Folder](https://drive.google.com/drive/folders/11mYK9Y27pWBh4bT4Tzd7kN8u9u6O-PU3?usp=sharing)
+*   **GitHub:** [technoob05](https://github.com/technoob05)
+
+</final_file_content>
+
+IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
+
+<environment_details>
+# VSCode Visible Files
+README.md
+
+# VSCode Open Tabs
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. <!-- Create a LICENSE file with MIT License text -->
