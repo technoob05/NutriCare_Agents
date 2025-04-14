@@ -19,12 +19,16 @@ export async function POST(request: Request) {
 
     // --- Validation Input (Thực hiện 1 lần bên ngoài vòng lặp retry) ---
     let dishName: string;
+    let imageData: string | undefined;
+    let editPrompt: string | undefined;
     try {
         const body = await request.json();
         dishName = body.dishName;
+        imageData = body.imageData; // base64 image data for editing
+        editPrompt = body.editPrompt; // text prompt for editing
 
-        if (!dishName) {
-            return NextResponse.json({ error: 'Dish name is required' }, { status: 400 });
+        if (!dishName && !imageData) {
+            return NextResponse.json({ error: 'Dish name or image data is required' }, { status: 400 });
         }
 
         if (!process.env.GEMINI_API_KEY) {
@@ -37,8 +41,32 @@ export async function POST(request: Request) {
     }
     // --------------------------------------------------------------------
 
-    const prompt = `Generate a realistic, appetizing photo of the dish: ${dishName}. Focus on the food itself, making it look delicious and well-presented.`;
-    console.log(`Attempting to generate image for: ${dishName} (Attempt ${attempt + 1})`);
+    let prompt: string;
+    let contents: any; // Define contents variable
+
+    if (imageData && editPrompt) {
+        // Image editing mode
+        prompt = editPrompt;
+        contents = [
+            { text: prompt },
+            {
+                inlineData: {
+                    mimeType: "image/png", // Assuming image is PNG for now
+                    data: imageData,
+                },
+            },
+        ];
+        console.log(`Attempting to edit image with prompt: ${editPrompt} (Attempt ${attempt + 1})`);
+    } else {
+        // Initial image generation mode
+        prompt = `Generate a realistic, high-quality, and appetizing photo of the dish: ${dishName}. The image should focus on showcasing the dish in a delicious and visually appealing manner, with attention to detail in lighting, composition, and presentation. The dish should be the main subject of the image, and the background should be clean and non-distracting.`;
+        contents = prompt;
+        console.log(`Attempting to generate image for: ${dishName} (Attempt ${attempt + 1})`);
+    }
+
+    const config = {
+        responseModalities: ["TEXT", "IMAGE"],
+    };
 
     // --- Vòng lặp Retry ---
     while (attempt <= MAX_RETRIES) {
@@ -46,10 +74,8 @@ export async function POST(request: Request) {
             // Gọi API tạo ảnh
             const result = await genAI.models.generateContent({
                 model: "gemini-2.0-flash-exp-image-generation",
-                contents: prompt,
-                config: {
-                    responseModalities: ["TEXT", "IMAGE"],
-                },
+                contents: contents,
+                config: config,
             });
 
             // --- Xử lý kết quả thành công ---
@@ -71,21 +97,34 @@ export async function POST(request: Request) {
 
             if (imagePart && imagePart.inlineData) {
                 console.log(`Successfully generated image for: ${dishName} after ${attempt + 1} attempt(s).`);
-                return NextResponse.json({ imageData: imagePart.inlineData.data }); // Trả về thành công và thoát vòng lặp
+                return NextResponse.json({ imageData: imagePart.inlineData.data }); // Success: return image and exit loop
             }
 
-            // Nếu không tìm thấy ảnh nhưng API không báo lỗi 503
-            console.error(`No inline image data found in Gemini response on attempt ${attempt + 1}:`, content.parts);
+            // --- Handle Case: API Success but No Image Data ---
+            // This might happen if the model returns only text or fails mid-generation
+            console.warn(`No inline image data found in Gemini response on attempt ${attempt + 1}. Checking for retry.`);
             const textParts = content.parts.filter((part: Part) => part.text).map((part: Part) => part.text);
             if (textParts.length > 0) {
                 console.log("Text parts received instead of image:", textParts.join('\n'));
             }
-            // Coi đây là lỗi không thể thử lại
-            throw new Error('Failed to extract image data from API response');
-            // ---------------------------------
+
+            // Treat this as a retryable condition if attempts remain
+            if (attempt < MAX_RETRIES) {
+                attempt++;
+                const delayTime = INITIAL_DELAY_MS * (BACKOFF_FACTOR ** (attempt - 1)) + Math.random() * 500;
+                console.log(`No image data, but retries remain. Retrying attempt ${attempt + 1}/${MAX_RETRIES + 1} after ${delayTime.toFixed(0)}ms...`);
+                await delay(delayTime);
+                continue; // Continue to the next iteration of the while loop
+            } else {
+                // No retries left, throw final error
+                console.error(`Failed to extract image data after ${attempt + 1} attempts.`);
+                throw new Error('Failed to extract image data from API response after multiple retries.');
+            }
+            // ----------------------------------------------------
 
         } catch (error: any) {
-            console.error(`Error on attempt ${attempt + 1} for "${dishName}":`, error.message);
+            // --- Handle Direct API Errors (e.g., 503, network issues) ---
+            console.error(`API Error on attempt ${attempt + 1} for "${dishName || 'edit'}":`, error.message);
 
             // --- Kiểm tra lỗi có thể thử lại (503 hoặc thông báo tương tự) ---
             const isRetryableError = error.message?.includes('503') ||
@@ -102,17 +141,18 @@ export async function POST(request: Request) {
                 continue;
             } else {
                 // Nếu không phải lỗi retryable hoặc đã hết số lần thử
-                console.error(`Failed to generate image for "${dishName}" after ${attempt + 1} attempt(s). Error: ${error.message}`);
-                // Ném lỗi ra ngoài để được xử lý bởi catch cuối cùng
-                throw error;
+            console.error(`Failed to generate image for "${dishName || 'edit'}" after ${attempt + 1} attempt(s). Error: ${error.message}`);
+            // Throw the error to be caught by Next.js default handler (or a higher-level try/catch)
+            throw error; // This will lead to a 500 response if not caught elsewhere
             }
             // -------------------------------------------------------------
         }
     } // Kết thúc vòng lặp while
 
-    // Đoạn code này chỉ đạt được nếu có lỗi logic nào đó mà không throw error đúng cách
-    console.error(`Exited retry loop unexpectedly for "${dishName}".`);
-    return NextResponse.json({ error: 'An unexpected error occurred after retries.' }, { status: 500 });
+    // This part should ideally not be reached if errors are thrown correctly within the loop.
+    // If it is reached, it means the loop exited without success or throwing an error.
+    console.error(`Exited retry loop unexpectedly for "${dishName || 'edit'}". This indicates a potential logic flaw.`);
+    return NextResponse.json({ error: 'An unexpected server error occurred after exhausting retries.' }, { status: 500 });
 
 } // Kết thúc hàm POST (không cần catch ở đây vì lỗi đã throw ra)
 

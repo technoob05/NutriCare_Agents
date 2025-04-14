@@ -103,7 +103,8 @@ const SimpleObjectDisplay: React.FC<{ data: Record<string, any>, maxDepth?: numb
         <div className="space-y-0.5 pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
             {Object.entries(data).map(([key, value]) => (
                 <div key={key} className="flex text-[11px]">
-                    <span className="font-medium text-gray-500 dark:text-gray-400 w-24 flex-shrink-0 truncate pr-1">{key}:</span>
+                    {/* Responsive key width */}
+                    <span className="font-medium text-gray-500 dark:text-gray-400 w-16 sm:w-24 flex-shrink-0 truncate pr-1">{key}:</span>
                     {typeof value === 'object' && value !== null && !Array.isArray(value) ? (
                         <SimpleObjectDisplay data={value} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
                     ) : typeof value === 'object' && value !== null && Array.isArray(value) ? (
@@ -168,7 +169,8 @@ const DataDisplay: React.FC<{ data: any, title: string, icon: React.ElementType 
     return (
         <div>
             <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1"><Icon size={14} /> {title}</span>
-            <div className="bg-gray-100 dark:bg-gray-700/80 p-2 rounded text-gray-800 dark:text-gray-200 shadow-inner max-h-48 overflow-auto">
+            {/* Added overflow-x-auto for horizontal scrolling if needed */}
+            <div className="bg-gray-100 dark:bg-gray-700/80 p-2 rounded text-gray-800 dark:text-gray-200 shadow-inner max-h-48 overflow-y-auto overflow-x-auto">
                 {content}
             </div>
         </div>
@@ -259,11 +261,11 @@ export function AgentProcessVisualizer({
         // --- Parse Plan (only once) ---
         if (!planParsedRef.current) {
             const planningStep = revealedSteps.find(step => step.stepName === PLANNING_STEP_NAME);
-            if (planningStep?.status === 'success' && planningStep.outputData?.plan) {
+            if (planningStep?.status === 'success' && planningStep.outputData?.plan ) {
                 const planString = planningStep.outputData.plan as string;
                 // Simple parsing: split by newline, trim, filter empty lines
-                const steps = planString
-                    .split('\n')
+                const steps = planString?.
+                    split('\n')
                     .map(s => s.trim().replace(/^\d+\.\s*/, '')) // Remove leading numbers like "1. "
                     .filter(s => s.length > 0);
 
@@ -579,8 +581,9 @@ export function AgentProcessVisualizer({
                                                         <span className="font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1.5 mb-1.5">
                                                             <SearchCheck size={14} /> Gợi ý tìm kiếm
                                                         </span>
+                                                        {/* Apply overflow directly to the element rendering HTML */}
                                                         <div
-                                                            className="google-search-suggestion"
+                                                            className="google-search-suggestion overflow-x-auto"
                                                             dangerouslySetInnerHTML={{ __html: groundingMeta.searchEntryPoint.renderedContent }}
                                                         />
                                                     </div>
@@ -601,7 +604,8 @@ export function AgentProcessVisualizer({
                                                                         href={chunk.web.uri}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 dark:text-blue-400 hover:underline hover:bg-blue-50 dark:hover:bg-blue-900/30 px-1 py-0.5 rounded text-[11px] leading-snug break-words group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors" // Added hover bg
+                                                                        // Added break-all for better long URL handling
+                                                                        className="text-blue-600 dark:text-blue-400 hover:underline hover:bg-blue-50 dark:hover:bg-blue-900/30 px-1 py-0.5 rounded text-[11px] leading-snug break-words break-all group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors"
                                                                         title={chunk.web.uri}
                                                                     >
                                                                         {chunk.web.title || chunk.web.uri}

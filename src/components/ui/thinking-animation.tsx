@@ -344,8 +344,9 @@ const SequentialStepsWithTextAnimation = ({
 
     return (
         <motion.div
-            className="flex flex-col items-start space-y-2 p-4 rounded-lg bg-white dark:bg-gray-800 
-                       border border-gray-100 dark:border-gray-700 shadow-sm min-w-[280px] md:min-w-[320px]"
+            // Removed min-w classes to allow shrinking
+            className="flex flex-col items-center justify-center p-4 rounded-lg bg-white dark:bg-gray-800
+                       border border-gray-100 dark:border-gray-700 shadow-sm"
             variants={containerVariants}
             initial="hidden"
             animate="visible"

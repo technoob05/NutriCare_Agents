@@ -205,7 +205,7 @@ export function Sidebar() {
                 flex h-full flex-col border-r bg-background transition-all duration-300 ease-in-out
                 ${isMobile ? 'fixed top-0 left-0 z-40' : 'relative'}
                 ${isOpen ? 'translate-x-0 w-72' : 'translate-x-[-100%] w-0 opacity-0 pointer-events-none'}
-                lg:${isOpen ? 'translate-x-0 w-72' : 'w-0 opacity-0 pointer-events-none'}
+                {/* Removed redundant lg: prefixed classes */}
             `}>
                 {/* Header - With padding to not overlap with toggle */}
                 <div className="flex h-16 items-center justify-between border-b px-4 flex-shrink-0 pl-14">

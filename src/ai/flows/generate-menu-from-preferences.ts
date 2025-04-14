@@ -5,10 +5,12 @@
  * Uses text-based generation for menu content to avoid complex schema issues and includes fallback for missing reasoning.
  */
 
-import { ai } from '@/ai/ai-instance';
+import { ai } from '@/ai/ai-instance'; // Reverted import
 import { z } from 'genkit';
-import { googleSearch, GroundedSearchResult } from '@/services/google-search'; // Assuming google-search service exists
+import { googleSearch, GroundedSearchResult } from '@/services/google-search';
 import { logger } from 'genkit/logging';
+import { allDefaultMenus, DefaultMenuWithMetadata, defaultStandardFamilyMenu } from '@/ai/data/default-menus'; // Import default menus
+// Removed unused FlowOptions import
 
 // --- Input Schema (Giữ nguyên) ---
 const GenerateMenuFromPreferencesInputSchema = z.object({
@@ -478,18 +480,67 @@ async function parseMenuTextToZod(
 }
 
 
+// +++ NEW: Helper function to select the best default menu +++
+function selectBestDefaultMenu(preferences: string): DefaultMenuWithMetadata {
+    const normalizedPrefs = preferences.toLowerCase().trim();
+    if (!normalizedPrefs) {
+        logger.warn("[Default Menu Selector] Empty preferences, returning standard family menu.");
+        // Return a copy to avoid potential mutations
+        return { ...defaultStandardFamilyMenu };
+    }
+
+    let bestMatch: DefaultMenuWithMetadata = defaultStandardFamilyMenu; // Default fallback
+    let highestScore = 0;
+
+    logger.info(`[Default Menu Selector] Selecting default menu for preferences: "${preferences}"`);
+
+    allDefaultMenus.forEach(menu => {
+        // Ensure menu is treated as DefaultMenuWithMetadata for type safety
+        const currentMenu = menu as DefaultMenuWithMetadata;
+        let currentScore = 0;
+        currentMenu.keywords.forEach(keyword => {
+            if (normalizedPrefs.includes(keyword.toLowerCase())) {
+                currentScore++;
+            }
+        });
+
+        logger.debug(`[Default Menu Selector] Menu "${currentMenu.description}" score: ${currentScore}`);
+
+        if (currentScore > highestScore) {
+            highestScore = currentScore;
+            bestMatch = currentMenu;
+        }
+    });
+
+    if (highestScore > 0) {
+        logger.info(`[Default Menu Selector] Best match found: "${bestMatch.description}" with score ${highestScore}.`);
+    } else {
+        logger.warn(`[Default Menu Selector] No keywords matched preferences. Returning standard family menu.`);
+    }
+
+    // Return a copy to avoid potential mutations if the original objects are modified later
+    // Also, ensure the returned object matches AnyMenuData (Daily or Weekly) by removing extra props
+    const { description, keywords, ...menuData } = bestMatch;
+    // We need to cast here because the default menus are currently only DailyMenuData
+    // If Weekly defaults were added, more complex logic might be needed.
+    return menuData as DailyMenuData & { description: string; keywords: string[] }; // Keep metadata for logging, but the core is DailyMenuData
+}
+
+
 // --- Main Orchestrator Flow (UPDATED Step 3 with Reasoning Fallback) ---
 const generateMenuFromPreferencesFlow = ai.defineFlow<
     typeof GenerateMenuFromPreferencesInputSchema,
     typeof GenerateMenuFromPreferencesOutputSchema
+    // Removed trailing comma here
 >(
     {
         name: 'generateMenuFromPreferencesFlow',
         inputSchema: GenerateMenuFromPreferencesInputSchema,
         outputSchema: GenerateMenuFromPreferencesOutputSchema,
     },
-    async (input) => {
-        logger.info(`[Flow Start] Bắt đầu tạo thực đơn ${input.menuType} (text-based) với tracing và grounding`, { preferences: input.preferences });
+    async (input) => { // Reverted signature
+        // Removed signal extraction
+        logger.info(`[Flow Start] Bắt đầu tạo thực đơn ${input.menuType} (text-based) với tracing và grounding`, { preferences: input.preferences }); // Removed hasSignal log
         const traceLog: StepTrace[] = [];
         let startTime: number;
         let menuContent: AnyMenuData | undefined = undefined; // Will hold the PARSED menu
@@ -529,10 +580,11 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             // Assign to a new constant after the check to satisfy TS type narrowing
             const validatedSearchInput: string = searchInput;
             logger.info(`[${searchStepName}] Gọi googleSearch với query: "${validatedSearchInput}"`);
-            groundedSearchResult = await googleSearch(validatedSearchInput); // Use the validated constant
+            // Removed signal from googleSearch call
+            groundedSearchResult = await googleSearch(validatedSearchInput);
             extractedCitations = groundedSearchResult.metadata?.groundingChunks?.map(chunk => ({
-                title: chunk.web.title,
-                uri: chunk.web.uri
+                title: chunk.web.title, // Reverted title fallback for now, assuming original data structure
+                uri: chunk.web.uri,
             })) || [];
             searchSuggestionHtml = groundedSearchResult.metadata?.searchEntryPoint?.renderedContent;
             step1OutputData = {
@@ -586,10 +638,13 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         let step2ErrorDetails: string | undefined = undefined;
         let step2OutputData: any = { plan: menuPlan };
         try {
+            // Removed signal check
             logger.info(`[${planningStepName}] Gọi planMenuStructurePrompt.`);
+            // Removed signal from prompt execution
             const planResponse = await planMenuStructurePrompt(planningInput);
             const output = planResponse.output;
             if (!output?.plan?.trim() || !output?.reasoning?.trim()) {
+                // Removed signal check
                 throw new Error("Output từ bước lập kế hoạch không hợp lệ hoặc bị trống.");
             }
             menuPlan = output.plan;
@@ -602,8 +657,8 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             step2ErrorDetails = error.message || String(error);
             step2OutputData.errorOutput = safeStringify(error.output || error, 1000);
             logger.error(`[${planningStepName}] Lỗi: ${step2ErrorDetails}`, error);
+            // Reverted AbortError handling, always use fallback on error
             logger.warn(`[${planningStepName}] Sử dụng kế hoạch và reasoning dự phòng.`);
-            // Reset plan/reasoning to fallback if error occurred
             menuPlan = `(Kế hoạch dự phòng) Tạo thực đơn ${input.menuType} dựa trên sở thích: ${input.preferences}.`;
             planningReasoning = `(Reasoning dự phòng) **Bước lập kế hoạch chi tiết đã thất bại hoặc bị bỏ qua do lỗi: ${step2ErrorDetails}**`;
         } finally {
@@ -642,12 +697,15 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         let generatedMenuString: string | undefined = undefined;
 
         try {
-            if (step2Status === 'success' && !menuPlan.startsWith('(Kế hoạch dự phòng)')) {
+            // Removed signal check
+            if (step2Status === 'success' && !menuPlan.startsWith('(Kế hoạch dự phòng)')) { // Reverted check for aborted plan
                 logger.info(`[${writingStepName}] Gọi generateMenuContentPrompt (yêu cầu text output).`);
+                // Removed signal from prompt execution
                 const menuContentResponse = await generateMenuContentPrompt(writingInput);
                 // IMPORTANT: Access the output carefully. It might not conform to the schema.
                 const output = menuContentResponse.output as any; // Cast to any to check fields safely
 
+                // Removed signal check
                 // +++ START: Reasoning Fallback Logic +++
                 let llmReasoning = (typeof output?.reasoning === 'string' && output.reasoning.trim())
                                     ? output.reasoning.trim()
@@ -662,7 +720,7 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
 
                 // Validate menuContentString presence AFTER handling reasoning
                 if (typeof output?.menuContentString !== 'string' || !output.menuContentString.trim()) {
-                     // Throw error if menuContentString is missing, as it's essential
+                     // Removed signal check
                      throw new Error(`LLM trả về output không hợp lệ hoặc menuContentString trống.`);
                 }
 
@@ -675,42 +733,85 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
                 logger.debug(`[${writingStepName}] Raw menu string:\n${generatedMenuString}`);
 
                 // --- Parsing Sub-step ---
-                logger.info(`[${writingStepName}] Bắt đầu phân tích menu string...`);
-                try {
-                    menuContent = await parseMenuTextToZod(generatedMenuString, input.menuType);
-                    step3OutputData.parsingStatus = 'Success';
-                    step3OutputData.parsedMenuSummary = `Parsed ${Object.keys(menuContent || {}).length} days/meals`;
-                    step3OutputData.parsedMenuDetails = safeStringify(menuContent, 1000);
-                    step3Reasoning += " | Phân tích văn bản thành cấu trúc dữ liệu thành công.";
-                    logger.info(`[${writingStepName}] Phân tích menu string thành Zod object thành công.`);
-                } catch (parseError: any) {
+                if (generatedMenuString) { // Add check to ensure string is not undefined
+                    logger.info(`[${writingStepName}] Bắt đầu phân tích menu string...`);
+                    try {
+                        menuContent = await parseMenuTextToZod(generatedMenuString, input.menuType);
+                        step3OutputData.parsingStatus = 'Success';
+                        step3OutputData.parsedMenuSummary = `Parsed ${Object.keys(menuContent || {}).length} days/meals`;
+                        step3OutputData.parsedMenuDetails = safeStringify(menuContent, 1000);
+                    } catch (parseError: any) {
+                        const originalParseErrorMsg = `Lỗi phân tích menu string: ${parseError.message}`;
+                        logger.error(`[${writingStepName}] ${originalParseErrorMsg}`, { rawString: generatedMenuString, errorDetails: parseError });
+
+                        // +++ NEW: Fallback to Default Menu on Parse Error +++
+                        logger.warn(`[${writingStepName}] Parsing failed. Attempting to select a default menu based on preferences: "${input.preferences}"`);
+                        try {
+                            // Select the best default menu based on original preferences
+                            const selectedDefaultMenu = selectBestDefaultMenu(input.preferences);
+                            // We only support Daily defaults for now, ensure type matches
+                            if (input.menuType === 'daily') {
+                                // Remove metadata before assigning to menuContent
+                                const { description, keywords, ...dailyMenuData } = selectedDefaultMenu;
+                                menuContent = dailyMenuData as DailyMenuData; // Assign the selected default Daily menu
+                                step3Status = 'error'; // Keep status as error because original parse failed
+                                step3ErrorDetails = `${originalParseErrorMsg}. Fallback: Used default menu "${selectedDefaultMenu.description}".`;
+                                step3OutputData.parsingStatus = 'FailedWithFallback';
+                                step3OutputData.parsingError = originalParseErrorMsg;
+                                step3OutputData.fallbackMenuUsed = selectedDefaultMenu.description;
+                                step3Reasoning += ` | Lỗi khi phân tích văn bản. Đã sử dụng thực đơn mặc định: "${selectedDefaultMenu.description}".`;
+                                logger.info(`[${writingStepName}] Successfully selected default menu: "${selectedDefaultMenu.description}"`);
+                            } else {
+                                // Handle case where a weekly menu was requested but only daily defaults exist
+                                logger.error(`[${writingStepName}] Parsing failed for weekly menu, and no weekly default menus are defined. Cannot provide fallback.`);
+                                step3Status = 'error';
+                                step3ErrorDetails = `${originalParseErrorMsg}. Fallback failed: No suitable weekly default menu found.`;
+                                step3OutputData.parsingStatus = 'FailedNoFallback';
+                                step3OutputData.parsingError = originalParseErrorMsg;
+                                step3Reasoning += ` | Lỗi khi phân tích văn bản. Không tìm thấy thực đơn mặc định phù hợp cho loại 'weekly'.`;
+                                menuContent = undefined; // Ensure menu is undefined
+                            }
+                        } catch (fallbackError: any) {
+                            logger.error(`[${writingStepName}] Critical error during default menu fallback selection: ${fallbackError.message}`, fallbackError);
+                            step3Status = 'error';
+                            step3ErrorDetails = `${originalParseErrorMsg}. Fallback selection also failed: ${fallbackError.message}`;
+                            step3OutputData.parsingStatus = 'FailedFallbackFailed';
+                            step3OutputData.parsingError = originalParseErrorMsg;
+                            step3OutputData.fallbackError = fallbackError.message;
+                            step3Reasoning += ` | Lỗi khi phân tích văn bản VÀ lỗi khi chọn thực đơn mặc định: ${fallbackError.message}`;
+                            menuContent = undefined; // Ensure menu is undefined
+                        }
+                        // +++ END: Fallback to Default Menu on Parse Error +++
+                    }
+                } else {
+                    // Handle case where generatedMenuString is undefined (shouldn't happen if previous checks pass, but good safety)
                     step3Status = 'error';
-                    step3ErrorDetails = `Lỗi phân tích menu string: ${parseError.message}`;
-                    step3OutputData.parsingStatus = 'Failed';
-                    step3OutputData.parsingError = parseError.message;
-                    step3Reasoning += ` | Lỗi khi phân tích văn bản thành cấu trúc dữ liệu: ${parseError.message}`;
-                    logger.error(`[${writingStepName}] ${step3ErrorDetails}`, { rawString: generatedMenuString });
+                    step3ErrorDetails = 'Không có nội dung menu string để phân tích.';
+                    step3OutputData.parsingStatus = 'Skipped (No Content)';
+                    step3Reasoning += ` | ${step3ErrorDetails}`;
+                    logger.error(`[${writingStepName}] ${step3ErrorDetails}`);
                     menuContent = undefined;
                 }
                 // --- End Parsing Sub-step ---
 
-            } else {
-                step3Status = 'skipped';
-                step3Reasoning = `Bước tạo nội dung bị bỏ qua do bước lập kế hoạch trước đó thất bại hoặc sử dụng kế hoạch dự phòng.`;
-                logger.warn(`[${writingStepName}] Bỏ qua bước tạo nội dung.`);
+            } else { // Reverted specific check for aborted step 2
+                 step3Status = 'skipped';
+                 step3Reasoning = `Bước tạo nội dung bị bỏ qua do bước lập kế hoạch trước đó thất bại hoặc sử dụng kế hoạch dự phòng.`;
+                 logger.warn(`[${writingStepName}] Bỏ qua bước tạo nội dung.`);
             }
         } catch (error: any) {
+            // Reverted AbortError handling
             step3Status = 'error';
             step3ErrorDetails = error.message || String(error);
-             // Log the raw output if available in the error object for debugging
-             step3OutputData.errorOutput = safeStringify(error.output || error, 1000);
-             logger.error(`[${writingStepName}] Lỗi trong quá trình gọi LLM hoặc xử lý output: ${step3ErrorDetails}`, error);
-             menuContent = undefined;
-             // Ensure reasoning reflects the error state if an LLM call error occurred
-             step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý output ban đầu: ${step3ErrorDetails}`;
+            // Log the raw output if available in the error object for debugging
+            step3OutputData.errorOutput = safeStringify(error.output || error, 1000);
+            logger.error(`[${writingStepName}] Lỗi trong quá trình gọi LLM hoặc xử lý output: ${step3ErrorDetails}`, error);
+            // Ensure reasoning reflects the error state if an LLM call error occurred
+            step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý output ban đầu: ${step3ErrorDetails}`;
+            menuContent = undefined; // Ensure menu is undefined on any error in this step
         } finally {
              // Define inputData and outputData for trace log separately
-             const traceInputData = step3Status !== 'skipped' ? safeStringify(writingInput, 1500) : { note: "Step skipped due to previous error." };
+             const traceInputData = step3Status !== 'skipped' ? safeStringify(writingInput, 1500) : { note: "Step skipped due to previous error." }; // Reverted note text
              // Ensure finalReasoning is string | undefined to match schema
              const finalReasoning = typeof step3Reasoning === 'string' ? step3Reasoning : undefined;
              const otherOutputProps = { ...step3OutputData }; // Get other props like parsingStatus etc.
@@ -799,9 +900,12 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         let step4ErrorDetails: string | undefined = undefined;
         let step4OutputData: any = {};
         try {
+            // Removed signal check and skip logic based on abort
             logger.info(`[${feedbackStepName}] Gọi generateFeedbackRequestPrompt.`);
+            // Removed signal from prompt execution
             const feedbackResponse = await generateFeedbackRequestPrompt(feedbackInput);
             const output = feedbackResponse.output;
+            // Removed signal check
             if (!output || typeof output.reasoning !== 'string') {
                 throw new Error("Output từ bước tạo phản hồi không hợp lệ.");
             }
@@ -817,15 +921,16 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
                 step4Reasoning += ` (LLM không tạo được câu hỏi, đã dùng fallback).`;
             }
         } catch (error: any) {
+            // Reverted AbortError handling
             step4Status = 'error';
             step4ErrorDetails = error.message || String(error);
             step4OutputData.errorOutput = safeStringify(error.output || error, 500);
             logger.error(`[${feedbackStepName}] Lỗi: ${step4ErrorDetails}`, error);
             logger.warn(`[${feedbackStepName}] Sử dụng câu hỏi phản hồi dự phòng.`);
-            feedbackRequest = fallbackFeedbackRequest;
+            feedbackRequest = fallbackFeedbackRequest; // Always use fallback on error
         } finally {
              // Define inputData and outputData for trace log separately
-             const traceInputData = feedbackInput;
+             const traceInputData = feedbackInput; // Reverted conditional input data
              const finalReasoning = typeof step4Reasoning === 'string' ? step4Reasoning : "[Feedback reasoning unavailable]";
              const traceOutputData = { ...step4OutputData, reasoning: finalReasoning };
 
@@ -847,12 +952,13 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         let step5Reasoning = `Tổng hợp kết quả từ các bước trước: thực đơn (đã parse), câu hỏi phản hồi, trace log, citations, và HTML gợi ý tìm kiếm vào cấu trúc JSON output cuối cùng.`;
         let step5Status: StepTrace['status'] = 'success';
         let step5InputSummary = {
-            menuParsedSuccessfully: menuContent !== undefined && step3Status === 'success', // Check if parsing succeeded
-            feedbackGenerated: feedbackRequest !== fallbackFeedbackRequest,
-            planAvailable: !menuPlan.startsWith('(Kế hoạch dự phòng)'),
-            planningReasoningAvailable: !planningReasoning.startsWith('(Reasoning dự phòng)'),
+            menuParsedSuccessfully: menuContent !== undefined && step3Status === 'success', // Reverted check
+            feedbackGenerated: feedbackRequest !== fallbackFeedbackRequest, // Reverted check
+            planAvailable: !menuPlan.startsWith('(Kế hoạch dự phòng)'), // Reverted check
+            planningReasoningAvailable: !planningReasoning.startsWith('(Reasoning dự phòng)'), // Reverted check
             citationsAvailable: extractedCitations.length > 0,
             searchSuggestionHtmlAvailable: !!searchSuggestionHtml
+            // Removed wasAborted check
         };
          // Define inputData and outputData for trace log separately
          const traceInputData = step5InputSummary;
@@ -872,38 +978,95 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         logger.info(`[${formattingStepName}] Hoàn tất định dạng kết quả cuối cùng.`);
 
         // --- Construct Final Output ---
+        // Assign all properties directly, using ternary for feedbackRequest
         const finalOutput: GenerateMenuFromPreferencesOutput = {
             menu: menuContent, // The parsed menu object (or undefined if failed)
-            feedbackRequest: feedbackRequest || fallbackFeedbackRequest,
+            feedbackRequest: feedbackRequest ? feedbackRequest : fallbackFeedbackRequest, // Assign guaranteed string - Reverted
             trace: traceLog,
             menuType: input.menuType,
             citations: extractedCitations.length > 0 ? extractedCitations : undefined,
             searchSuggestionHtml: searchSuggestionHtml,
         };
-        logger.info(`[Flow End] Hoàn thành tạo thực đơn ${input.menuType}. Trả về kết quả (menu ${menuContent ? 'đã parse' : 'parse lỗi/bị bỏ qua'}), trace, ${extractedCitations.length} citations, và ${searchSuggestionHtml ? 'có' : 'không có'} HTML chip gợi ý.`);
+
+        // +++ NEW: Final Fallback Check to ensure menu is never undefined/null +++
+        // This guarantees the output always contains *some* menu structure, even if it's an error state.
+        // Reverted wasAborted check
+        if (!finalOutput.menu) {
+            logger.error(`[Flow End] Critical Failure: No menu content generated or parsed successfully after all steps. Generating default fallback error menu.`);
+
+            // Define placeholder meal and default menu structure within the scope
+             const defaultPlaceholderMeal: MenuItemData = {
+                name: "Món ăn mặc định (Lỗi)",
+                ingredients: ["Đã xảy ra lỗi trong quá trình tạo thực đơn."],
+                preparation: "Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+                // Ensure all required fields from MenuItemSchema have a value or are explicitly undefined if optional
+                estimatedCost: undefined,
+                calories: undefined,
+                protein: undefined,
+                carbs: undefined,
+                fat: undefined,
+                healthBenefits: undefined,
+            };
+
+            // Always generate a daily menu structure as the ultimate fallback
+            // Ensure it conforms to DailyMenuSchema
+            const defaultMenu: DailyMenuData = {
+                breakfast: [defaultPlaceholderMeal],
+                lunch: [defaultPlaceholderMeal],
+                dinner: [defaultPlaceholderMeal],
+                snacks: undefined, // Explicitly undefined if optional
+            };
+
+             finalOutput.menu = defaultMenu; // Assign the default menu
+
+            // Add/Update trace log to reflect this critical fallback
+            const fallbackTraceEntry: StepTrace = {
+                stepName: "Bước 6: Fallback Cuối cùng (Critical Failure)",
+                status: 'error', // Indicate an overall process failure led to this
+                inputData: { previousMenuState: 'undefined or null' }, // Removed wasAborted
+                outputData: { reasoning: "Không có nội dung thực đơn nào được tạo hoặc phân tích thành công trong toàn bộ quy trình. Đã tạo thực đơn mặc định báo lỗi.", generatedMenuType: 'Default Daily Error Menu' },
+                errorDetails: "Toàn bộ quá trình tạo thực đơn chính và các fallback trước đó đều thất bại trong việc tạo ra một đối tượng menu hợp lệ.",
+                durationMs: 0 // Indicate this is an immediate check/fix step
+            };
+            // Ensure trace exists before pushing
+            if (!finalOutput.trace) { finalOutput.trace = []; }
+            finalOutput.trace.push(fallbackTraceEntry);
+        }
+        // +++ END: Final Fallback Check +++
+
+        // Reverted logging and re-throwing of AbortError
+        logger.info(`[Flow End] Hoàn thành tạo thực đơn ${input.menuType}. Trả về kết quả (menu ${finalOutput.menu ? 'có dữ liệu' : 'KHÔNG CÓ DỮ LIỆU - LỖI NGHIÊM TRỌNG'}), trace, ${extractedCitations.length} citations, và ${searchSuggestionHtml ? 'có' : 'không có'} HTML chip gợi ý.`);
         return finalOutput;
     }
 );
 
-// --- Exported Entry Point (Giữ nguyên) ---
+// --- Exported Entry Point ---
 export async function generateMenuFromPreferences(
     input: GenerateMenuFromPreferencesInput
+    // REMOVED options parameter
 ): Promise<GenerateMenuFromPreferencesOutput> {
-    logger.info("[Entry Point] Received request to generate menu.", input);
+    // REMOVED signal variable
+    logger.info("[Entry Point] Received request to generate menu.", { ...input }); // REMOVED hasSignal log
     const parseResult = GenerateMenuFromPreferencesInputSchema.safeParse(input);
     if (!parseResult.success) {
         const formattedError = parseResult.error.format();
+        const errorMsg = `Input không hợp lệ: ${JSON.stringify(formattedError)}`;
         logger.error('[Entry Point] Input validation failed.', formattedError);
-        // Consider returning a structured error instead of throwing raw string
-        throw new Error(`Input không hợp lệ: ${JSON.stringify(formattedError)}`);
+        throw new Error(errorMsg);
     }
     try {
+        // REMOVED Cancellation Check
+
+        // Call the flow without passing the signal internally
         const result = await generateMenuFromPreferencesFlow(parseResult.data);
         return result;
     } catch (error: any) {
+         // REMOVED AbortError check
+        // Handle general errors
         const errorMessage = error.message || String(error);
         logger.error(`[Entry Point] Lỗi nghiêm trọng khi thực thi flow: ${errorMessage}`, error);
-        // Consider returning a structured error or a default error response
         throw new Error(`Tạo thực đơn thất bại: ${errorMessage}`);
     }
 }
+
+// Removed extra closing braces and fixed syntax errors from previous attempt
