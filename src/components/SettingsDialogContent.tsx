@@ -23,6 +23,8 @@ import { Terminal, Save, Info, Loader2, Settings, Mic, Bot, KeyRound } from "luc
 import { cn } from '@/lib/utils';
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { HealthInformationForm } from '@/components/HealthInformationForm'; // Corrected: Named import
+import { HeartPulse } from 'lucide-react'; // Import icon for health form
 
 // --- Constants ---
 const AGENT_KEYS = {
@@ -261,13 +263,40 @@ export function SettingsDialogContent() {
                         <p className="mt-2 text-sm text-muted-foreground">
                             Chọn model cụ thể cho từng tác vụ AI. "Mặc định" sẽ dùng cài đặt chung hoặc model mới nhất phù hợp.
                         </p>
-                     )}
+                      )}
+                 </AccordionContent>
+             </AccordionItem>
+
+            {/* --- Health Information Section --- */}
+            <AccordionItem value="healthInfoSection">
+                <AccordionTrigger className="text-base font-semibold hover:no-underline px-1">
+                    <div className="flex items-center space-x-2">
+                        <HeartPulse className="h-5 w-5 text-muted-foreground" />
+                        <span>Thông tin Sức khỏe</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 px-1">
+                    {/* Render the HealthInformationForm component */}
+                    <HealthInformationForm />
                 </AccordionContent>
             </AccordionItem>
 
-            {/* --- Developer Note Section --- */}
-            <AccordionItem value="developerNoteSection">
+            {/* --- Speech Settings Section --- */}
+            <AccordionItem value="speechSettingsSection">
                 <AccordionTrigger className="text-base font-semibold hover:no-underline px-1">
+                    <div className="flex items-center space-x-2">
+                        <Mic className="h-5 w-5 text-muted-foreground" />
+                        <span>Cài đặt Giọng nói (TTS)</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 px-1">
+                    <SpeechSettings />
+                </AccordionContent>
+            </AccordionItem>
+
+             {/* --- Developer Note Section --- */}
+             <AccordionItem value="developerNoteSection">
+                 <AccordionTrigger className="text-base font-semibold hover:no-underline px-1">
                      <div className="flex items-center space-x-2">
                          <Terminal className="h-5 w-5 text-muted-foreground" />
                          <span>Lưu ý cho nhà phát triển</span>

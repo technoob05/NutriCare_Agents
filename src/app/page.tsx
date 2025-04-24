@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar"
 import {
   LogOut,
@@ -18,17 +18,23 @@ import {
   ArrowRight,
   Heart,
   BookOpen,
-  UserCircle
-} from "lucide-react"
-import { MainNav } from "@/components/main-nav"
-import { useToast } from "@/hooks/use-toast"
+  UserCircle,
+  Settings, // Added Settings icon
+} from "lucide-react";
+import { MainNav } from "@/components/main-nav";
+import { useToast } from "@/hooks/use-toast";
+// Import useAuth hook and signOut
+import { useAuth } from "@/context/AuthContext";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/config";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogTrigger, // Added DialogTrigger
 } from "@/components/ui/dialog"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -36,6 +42,12 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import QuickActions from "@/components/QuickActions" // Added import
+import PersonalizedInsights from "@/components/PersonalizedInsights" // Added import
+import DailyTip from "@/components/DailyTip" // Added import
+import AiShowcase from "@/components/AiShowcase" // Added import
+import { SettingsDialogContent } from "@/components/SettingsDialogContent"; // Added import for settings
+import recommendationsData from "../../public/data/recommendations.json" // Import JSON data
 
 // Cập nhật giao diện Meal để khớp với recommendations.json
 interface Meal {
@@ -73,24 +85,32 @@ const itemVariants = {
 }
 
 export default function HomePage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [meals, setMeals] = useState<Meal[]>([])
-  const { toast } = useToast()
+  const router = useRouter();
+  // Use auth context for user and loading state
+  const { user, loading } = useAuth();
+  // Initialize meals state directly from imported data
+  const [meals, setMeals] = useState<Meal[]>(recommendationsData.meals || []);
+  const { toast } = useToast();
 
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
-  const [favorites, setFavorites] = useState<string[]>([])
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false); // State for settings dialog
 
+  // Effect for redirecting if not logged in
   useEffect(() => {
-    checkAuth()
-    loadMeals()
+    if (!loading && !user) {
+      router.push("/auth/login");
+    }
+  }, [user, loading, router]);
+
+  // Effect for loading favorites from localStorage
+  useEffect(() => {
     // Tải danh sách yêu thích từ localStorage
-    if (typeof window !== 'undefined') {
-      const savedFavorites = localStorage.getItem("favorites")
+    if (typeof window !== "undefined") {
+      const savedFavorites = localStorage.getItem("favorites");
       if (savedFavorites) {
         try {
           setFavorites(JSON.parse(savedFavorites))
@@ -100,69 +120,32 @@ export default function HomePage() {
         }
       }
     }
-  }, [])
+    // Only run this effect once on mount
+  }, []);
 
-  const checkAuth = () => {
-    if (typeof window !== 'undefined') {
-      const currentUser = localStorage.getItem("currentUser")
-      if (!currentUser) {
-        router.push("/auth/login")
-        setIsLoading(false) // Đặt isLoading thành false ngay cả khi chuyển hướng
-        return
-      }
+  // Removed checkAuth function
+  // Removed loadMeals function
 
-      try {
-        const userData = JSON.parse(currentUser)
-        setUser(userData)
-      } catch (error) {
-        console.error("Lỗi khi phân tích cú pháp người dùng từ localStorage:", error)
-        localStorage.removeItem("currentUser")
-        router.push("/auth/login")
-      } finally {
-        setIsLoading(false)
-      }
-    } else {
-      // Xử lý phía server hoặc môi trường không có window
-      setIsLoading(false)
-    }
-  }
-
-  const loadMeals = async () => {
+  // Updated handleLogout to use Firebase signOut
+  const handleLogout = async () => {
     try {
-      // Đảm bảo đường dẫn chính xác đến file JSON
-      const response = await fetch('/data/recommendations.json')
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      const data = await response.json()
-      // Kiểm tra xem data.meals có phải là một mảng không
-      if (Array.isArray(data.meals)) {
-        setMeals(data.meals)
-      } else {
-        console.error('Dữ liệu tải về không chứa mảng meals hợp lệ:', data)
-        throw new Error('Định dạng dữ liệu món ăn không hợp lệ')
-      }
-    } catch (error) {
-      console.error('Lỗi khi tải món ăn:', error)
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải danh sách món ăn. Vui lòng thử lại sau.",
-        variant: "destructive",
-      })
-    }
-  }
-
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem("currentUser")
+      await signOut(auth);
+      // AuthProvider's onAuthStateChanged will handle user state update
       toast({
         title: "Thông báo",
         description: "Đăng xuất thành công.",
-      })
-      router.push("/auth/login")
+      });
+      // No need to manually push, the redirect effect will handle it
+      // router.push("/auth/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Lỗi",
+        description: "Đã xảy ra lỗi khi đăng xuất.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const toggleFavorite = (mealName: string) => {
     let newFavorites = [...favorites]
@@ -220,10 +203,10 @@ export default function HomePage() {
       default:
         return true; // Mặc định hiển thị nếu tab không khớp
     }
-  })
+  });
 
-
-  if (isLoading) {
+  // Use loading state from useAuth
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         {/* Sử dụng Skeleton cho trạng thái tải */}
@@ -259,15 +242,14 @@ export default function HomePage() {
     )
   }
 
-  // Chuyển hướng nếu không có người dùng (thực hiện trong useEffect nhưng kiểm tra lại ở đây)
-  // Component không nên render nếu không có người dùng, return null để tránh lỗi trước khi chuyển hướng hoàn tất
-  if (!user) {
-     // useEffect đã gọi router.push, chỉ cần không render gì cả
-     return null;
+  // The redirect effect handles the case where there's no user after loading
+  // If loading is false and user exists, render the content
+  if (!loading && !user) {
+    // Should have been redirected by the effect, return null to prevent rendering flicker
+    return null;
   }
 
-
-  // Chỉ render nội dung khi user đã được xác thực và không còn loading
+  // Render content only when loading is complete and user exists
   return (
     <div className="min-h-screen bg-background">
       {/* Header với hiệu ứng Glassmorphism */}
@@ -289,7 +271,12 @@ export default function HomePage() {
               <div className="flex items-center gap-1">
                 <Avatar className="h-8 w-8 border border-primary/10">
                   <div className="flex h-full w-full items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                    {user?.name ? user.name[0].toUpperCase() : '?'}
+                    {/* Use user.displayName or email initial */}
+                    {user?.displayName
+                      ? user.displayName[0].toUpperCase()
+                      : user?.email
+                      ? user.email[0].toUpperCase()
+                      : "?"}
                   </div>
                 </Avatar>
                 <Button
@@ -355,15 +342,6 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Các mẫu nền hoạt hình */}
-          <div className="absolute inset-0 -z-10 opacity-10">
-            <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"></div>
-          </div>
-        </section>
-
-        {/* Nội dung chính */}
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid gap-16">
             {/* Thẻ Hồ sơ người dùng */}
             <motion.section
               initial={{ opacity: 0, y: 20 }}
@@ -375,32 +353,53 @@ export default function HomePage() {
                   <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
                     <Avatar className="h-24 w-24 ring-4 ring-background shadow-md">
                       <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-500 text-4xl font-semibold text-primary-foreground">
-                        {user?.name ? user.name[0].toUpperCase() : '?'}
+                        {/* Use user.displayName or email initial */}
+                        {user?.displayName
+                          ? user.displayName[0].toUpperCase()
+                          : user?.email
+                          ? user.email[0].toUpperCase()
+                          : "?"}
                       </div>
                     </Avatar>
                     <div className="text-center sm:text-left">
-                      <CardTitle className="text-3xl mb-2">{user?.name || 'Người dùng'}</CardTitle>
-                      <p className="text-muted-foreground">{user?.email || 'Không có email'}</p>
+                      {/* Use user.displayName or 'Người dùng' */}
+                      <CardTitle className="text-3xl mb-2">
+                        {user?.displayName || "Người dùng"}
+                      </CardTitle>
+                      <p className="text-muted-foreground">
+                        {user?.email || "Không có email"}
+                      </p>
                       <div className="mt-4 flex gap-2">
-                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => router.push("/profile")}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-8"
+                          onClick={() => router.push("/profile")}
+                        >
                           <UserCircle className="mr-1 h-3 w-3" />
-                          Hồ sơ
-                        </Button>
-                        {/* Giả sử có trang cài đặt */}
-                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => router.push("/settings")}>
-                          Cài đặt
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <CardContent className="p-6">
-                  {/* Cập nhật các số liệu thống kê này bằng dữ liệu thực tế nếu có */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                           Hồ sơ
+                         </Button>
+                         {/* Updated Settings Button to open Dialog */}
+                         <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setIsSettingsDialogOpen(true)}>
+                           <Settings className="mr-1 h-3 w-3" /> {/* Added icon */}
+                           Cài đặt
+                         </Button>
+                       </div>
+                     </div> {/* Inner div for text-center/left */}
+                   </div> {/* Inner div for flex */}
+                 </div> {/* This is the correct closing tag for the div starting on line 294 */}
+                 <CardContent className="p-6">
+                   {/* Cập nhật các số liệu thống kê này bằng dữ liệu thực tế nếu có */}
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                       { icon: BookOpen, label: "Thực đơn đã tạo", value: "0" }, // Placeholder
-                      { icon: Apple, label: "Calories mục tiêu", value: user?.targetCalories || "N/A" }, // Placeholder
-                      { icon: Heart, label: "Món ăn yêu thích", value: favorites.length.toString() },
+                      // Assuming targetCalories might come from user profile data later, not directly from Firebase auth user object
+                      { icon: Apple, label: "Calories mục tiêu", value: "N/A" }, // Placeholder, adjust if profile data is fetched
+                      {
+                        icon: Heart,
+                        label: "Món ăn yêu thích",
+                        value: favorites.length.toString(),
+                      },
                       { icon: Brain, label: "Tương tác AI", value: "0" }, // Placeholder
                     ].map((stat, i) => (
                       <motion.div
@@ -589,6 +588,45 @@ export default function HomePage() {
                 </AnimatePresence>
               </motion.div>
             </motion.section>
+
+          {/* Các mẫu nền hoạt hình */}
+          <div className="absolute inset-0 -z-10 opacity-10">
+            <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          </div>
+        </section>
+
+        {/* Nội dung chính */}
+        <div className="container mx-auto px-4 py-12">
+          {/* Quick Actions Section */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="mb-12" // Add margin below Quick Actions
+          >
+            <QuickActions />
+          </motion.section>
+
+          <div className="grid gap-16">
+             {/* Insights and Tip Section */}
+             <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-8" // Grid for side-by-side layout on medium screens and up
+            >
+              <PersonalizedInsights />
+              <DailyTip />
+            </motion.section>
+
+             {/* AI Showcase Section */}
+             <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.5 }} // Slightly later delay
+            >
+              <AiShowcase />
+            </motion.section>
           </div>
         </div>
 
@@ -739,6 +777,28 @@ export default function HomePage() {
                 </DialogFooter>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Settings Dialog */}
+        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]"> {/* Adjust width as needed */}
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Settings className="h-5 w-5" />
+                <span>Cài đặt ứng dụng</span>
+              </DialogTitle>
+              <DialogDescription>
+                Quản lý API Key, lựa chọn model AI, và các tùy chọn khác.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 max-h-[70vh] overflow-y-auto px-1"> {/* Added scroll for content */}
+              <SettingsDialogContent />
+            </div>
+            {/* Optional: Add a close button in the footer if needed */}
+            {/* <DialogFooter>
+              <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>Đóng</Button>
+            </DialogFooter> */}
           </DialogContent>
         </Dialog>
       </main>

@@ -34,7 +34,10 @@ import {
     Search,
     ClipboardCopy, // Added for Copy button
     Download, // Added for Download button
-    Wand2 // Added for Enhance button
+    Wand2, // Added for Enhance button
+    Volume2, // Added for TTS
+    ThumbsUp, // Added for Like
+    ThumbsDown, // Added for Dislike
 } from 'lucide-react';
 
 // --- AI Flows ---
@@ -61,6 +64,21 @@ const QUICK_REPLIES = ["Bữa sáng nhanh gọn", "Thực đơn ít calo", "Món
 const ANIMATION_VARIANTS: ChatMessage['animationVariant'][] = ['sequential', 'nodes', 'cycle', 'promptBot', 'stepsWithText'];
 
 // --- Types ---
+// Type for health information stored in localStorage
+interface HealthInfo {
+    name?: string;
+    age?: number | null;
+    gender?: string;
+    height?: number | null;
+    weight?: number | null;
+    activityLevel?: string;
+    allergies?: string;
+    dietaryRestrictions?: string;
+    preferences?: string; // User's general food preferences (from health form)
+    medicalConditions?: string;
+    goals?: string;
+}
+
 // Removed SuggestMenuModificationsOutput interface as we'll use the flow's output type directly
 
 interface ChatMessage {
@@ -103,6 +121,7 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
     const [isListeningPreferences, setIsListeningPreferences] = useState(false);
     const [isListeningFeedback, setIsListeningFeedback] = useState(false);
     const [isPreferenceSectionOpen, setIsPreferenceSectionOpen] = useState(true); // Start open
+    const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null); // <-- State for health info
 
     // --- Refs ---
     const chatEndRef = useRef<HTMLDivElement>(null); // Keep for potential fallback or other uses
@@ -214,6 +233,26 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
             localStorage.setItem('userPreferences', preferences);
         }
     }, [preferences]);
+
+    // Effect to load health information from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedHealthInfo = localStorage.getItem('healthInformation');
+            if (storedHealthInfo) {
+                try {
+                    const parsedInfo: HealthInfo = JSON.parse(storedHealthInfo);
+                    setHealthInfo(parsedInfo);
+                    console.log("Loaded health information:", parsedInfo);
+                } catch (error) {
+                    console.error("Failed to parse health information from localStorage:", error);
+                    setHealthInfo(null); // Reset or handle error state
+                }
+            } else {
+                console.log("No health information found in localStorage.");
+                setHealthInfo(null);
+            }
+        }
+    }, []); // Runs once on mount
 
     // --- Event Handlers ---
     const handlePreferenceChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => setPreferences(e.target.value);
@@ -342,11 +381,24 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
             response = await generateMenuFromPreferences({
                 preferences: trimmedPreferences,
                 menuType,
-                userContext: { // Add user context object
+                userContext: { // Add user context object including health info
                     username: user?.username,
-                    // TODO: Add other relevant user data here (e.g., from settings)
-                    // dietaryRestrictions: user?.settings?.dietaryRestrictions,
-                    // healthGoals: user?.settings?.healthGoals,
+                    // Include health info if available
+                    age: healthInfo?.age,
+                    gender: healthInfo?.gender,
+                    height: healthInfo?.height,
+                    weight: healthInfo?.weight,
+                    activityLevel: healthInfo?.activityLevel,
+                    allergies: healthInfo?.allergies,
+                    dietaryRestrictions: healthInfo?.dietaryRestrictions,
+                    medicalConditions: healthInfo?.medicalConditions,
+                    healthGoals: healthInfo?.goals,
+                    // Note: healthInfo?.preferences is the general preference from the form,
+                    // 'preferences' variable holds the specific request for *this* menu generation.
+                    // We might want to pass both or decide which is more relevant.
+                    // Let's pass the specific request as 'currentRequest' and form prefs as 'generalPreferences'
+                    currentRequestPreferences: trimmedPreferences, // The specific request for this menu
+                    generalFoodPreferences: healthInfo?.preferences, // General prefs from form
                 },
                 // signal: controller.signal // Pass signal here (adjust if needed)
             }); // REMOVED signal passing
@@ -547,7 +599,24 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
             const modificationsResult = await suggestMenuModificationsBasedOnFeedback({
                 menu: baseMenuString,
                 feedback: trimmedFeedback,
-                userContext: { username: user?.username },
+                userContext: { // Pass context matching the schema
+                    username: user?.username,
+                    // Convert null to undefined for numeric fields
+                    age: healthInfo?.age ?? undefined,
+                    gender: healthInfo?.gender,
+                    height: healthInfo?.height ?? undefined,
+                    weight: healthInfo?.weight ?? undefined,
+                    activityLevel: healthInfo?.activityLevel,
+                    // Convert string to string array for medicalConditions
+                    medicalConditions: healthInfo?.medicalConditions ? [healthInfo.medicalConditions] : undefined,
+                    // healthGoals, generalFoodPreferences, originalMenuPreferences are not part of this flow's userContext schema
+                },
+                 userPreferences: { // Pass preferences matching the schema
+                    // Convert string to string array
+                    allergies: healthInfo?.allergies ? [healthInfo.allergies] : undefined,
+                    dietaryRestrictions: healthInfo?.dietaryRestrictions ? [healthInfo.dietaryRestrictions] : undefined,
+                    // Other fields from schema are not currently stored in healthInfo state
+                 },
                 // signal: controller.signal // Pass the signal here (adjust if the function signature is different)
             }); // REMOVED signal passing
 
@@ -686,6 +755,43 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 toast({ title: "Lỗi sao chép", description: "Không thể sao chép nội dung.", variant: "destructive" });
             });
     }, [toast]); // Depends only on toast
+
+    // --- TTS Handler ---
+    const handleSpeak = useCallback((textToSpeak: string | undefined) => {
+        if (!textToSpeak || !synthRef.current) {
+            toast({ title: "Lỗi TTS", description: "Không có nội dung để đọc hoặc TTS chưa sẵn sàng.", variant: "destructive" });
+            return;
+        }
+        // Cancel any ongoing speech before starting new
+        synthRef.current.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'vi-VN'; // Set language to Vietnamese
+        // Optional: Find a Vietnamese voice if available
+        const voices = synthRef.current.getVoices();
+        const vietnameseVoice = voices.find(voice => voice.lang === 'vi-VN');
+        if (vietnameseVoice) {
+            utterance.voice = vietnameseVoice;
+        } else {
+            console.warn("Không tìm thấy giọng đọc tiếng Việt. Sử dụng giọng mặc định.");
+        }
+        // Optional: Adjust rate and pitch if desired
+        // utterance.rate = 1;
+        // utterance.pitch = 1;
+
+        synthRef.current.speak(utterance);
+    }, [toast]); // Depends on toast
+
+    // --- Placeholder Like/Dislike Handler ---
+    const handleFeedbackAction = useCallback((action: 'like' | 'dislike', messageId: string | number) => {
+        // In a real app, you'd send this feedback to your backend
+        console.log(`Action: ${action}, Message ID: ${messageId}`);
+        toast({
+            title: `Đã ${action === 'like' ? 'thích' : 'không thích'}`,
+            description: `Cảm ơn phản hồi của bạn về tin nhắn ${messageId}!`,
+        });
+    }, [toast]); // Depends on toast
+
 
     // --- Download Chat Handler ---
     const handleDownloadChat = useCallback(() => {
@@ -863,60 +969,143 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
     // --- Render Logic ---
 
-    // Refined Message Rendering Function (Updated for Modified Menu Component)
+    // Refined Message Rendering Function (Fixing TS Errors and Hover - Attempt 5)
     const renderMessageContent = (message: ChatMessage) => {
-        const isBotOrSystem = message.type === 'bot' || message.type === 'system' || message.type === 'component' || message.type === 'trace_display' || message.type === 'suggestion_display' || message.type === 'suggestion_chip' || message.type === 'error' || message.type === 'export_display' || message.type === 'bot_thinking'; // Added export_display and bot_thinking
-        const botMessageContainerClass = "flex items-start gap-2.5";
+        const isBotOrSystem = message.type === 'bot' || message.type === 'system' || message.type === 'component' || message.type === 'trace_display' || message.type === 'suggestion_display' || message.type === 'suggestion_chip' || message.type === 'error' || message.type === 'export_display' || message.type === 'bot_thinking';
+        const botMessageContainerClass = "group flex items-start gap-2.5"; // Group class on the main container - REVERTED justify-center
         const botMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-tl-none";
-        const userMessageContainerClass = "flex items-start gap-2.5 justify-end";
+        const userMessageContainerClass = "flex items-start gap-2.5 justify-end"; // REVERTED justify-center to justify-end
         const userMessageBubbleClass = "max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg shadow-sm bg-blue-600 text-white rounded-tr-none";
-
-        // Removed handleCopy definition from here
+        // Buttons positioned absolutely at the bottom of the inner wrapper (within padding), appear on group hover
+        const actionButtonContainerClass = "absolute bottom-1 left-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"; // Positioned within pb-8 padding
+        const actionButtonClass = "h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-white dark:bg-gray-800 rounded p-0.5"; // Added bg for visibility
 
         switch (message.type) {
             case 'user':
                 return message.text ? ( <div className={userMessageContainerClass}><div className={userMessageBubbleClass}><pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre></div><User className="w-6 h-6 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1" /></div> ) : null;
             case 'bot':
-                 return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={botMessageBubbleClass}><pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre></div></div> ) : null;
+                 return message.text ? (
+                    <div className={botMessageContainerClass}>
+                        <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                        <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                            {/* Bubble */}
+                            <div className={botMessageBubbleClass}>
+                                <pre className="whitespace-pre-wrap font-sans text-sm">{message.text}</pre>
+                            </div>
+                            {/* Action Buttons - Positioned absolutely within the padded space */}
+                            <div className={actionButtonContainerClass}>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(message.text)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(message.text)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép</p></TooltipContent></Tooltip></TooltipProvider>
+                            </div>
+                        </div>
+                    </div>
+                 ) : null;
             case 'system':
-                return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><Alert variant="default" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm"><Info className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Thông báo</AlertTitle><AlertDescription className="text-sm">{message.text}</AlertDescription></Alert></div> ) : null;
+                return message.text ? (
+                    <div className={botMessageContainerClass}>
+                        <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                        <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                            <Alert variant="default" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm">
+                                <Info className="h-4 w-4" />
+                                <AlertTitle className="text-sm font-medium">Thông báo</AlertTitle>
+                                <AlertDescription className="text-sm">{message.text}</AlertDescription>
+                            </Alert>
+                             {/* Action Buttons - Positioned absolutely within the padded space */}
+                             <div className={actionButtonContainerClass}>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(message.text)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(message.text)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép</p></TooltipContent></Tooltip></TooltipProvider>
+                            </div>
+                        </div>
+                    </div>
+                 ) : null;
             case 'error':
-                 return message.text ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" /><Alert variant="destructive" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm"><AlertCircle className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Lỗi</AlertTitle><AlertDescription className="text-sm">{message.text}</AlertDescription></Alert></div> ) : null;
+                 return message.text ? (
+                    <div className={botMessageContainerClass}>
+                        <Bot className="w-6 h-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" />
+                         <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                            <Alert variant="destructive" className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl p-3 rounded-lg rounded-tl-none shadow-sm">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle className="text-sm font-medium">Lỗi</AlertTitle>
+                                <AlertDescription className="text-sm">{message.text}</AlertDescription>
+                            </Alert>
+                             {/* Action Buttons - Positioned absolutely within the padded space */}
+                             <div className={actionButtonContainerClass}>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(message.text)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(message.text)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép</p></TooltipContent></Tooltip></TooltipProvider>
+                            </div>
+                         </div>
+                    </div>
+                 ) : null;
             case 'trace_display':
-                // Pass isGeneratingMenu to AgentProcessVisualizer
-                return message.traceData ? ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1 opacity-50" /><div className={cn(botMessageBubbleClass, "bg-gray-50 dark:bg-gray-700/50 border border-border/50")}><AgentProcessVisualizer trace={message.traceData} isProcessing={isGeneratingMenu} /></div></div> ) : null;
+                 // Pass isGeneratingMenu to AgentProcessVisualizer
+                 // Add action buttons (Like/Dislike only for now)
+                 return message.traceData ? (
+                    <div className={botMessageContainerClass}>
+                        <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1 opacity-50" />
+                        <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                            <div className={cn(botMessageBubbleClass, "bg-gray-50 dark:bg-gray-700/50 border border-border/50 overflow-x-auto")}>
+                                <AgentProcessVisualizer trace={message.traceData ?? []} isProcessing={isGeneratingMenu} />
+                            </div>
+                            {/* Action Buttons - Positioned absolutely within the padded space */}
+                            <div className={actionButtonContainerClass}>
+                                {/* <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} disabled><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc (Vô hiệu hóa)</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc (Vô hiệu hóa)</p></TooltipContent></Tooltip></TooltipProvider> */}
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                {/* <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} disabled><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép (Vô hiệu hóa)</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép (Vô hiệu hóa)</p></TooltipContent></Tooltip></TooltipProvider> */}
+                            </div>
+                        </div>
+                    </div>
+                 ) : null; // Added ?? [] for trace
             case 'component':
                 // Check if it's a modified menu first
                 if (message.modifiedMenuData) {
-                    // Determine menuType - needs to be passed or inferred
-                    // For now, assume it's the same as the current state menuType
-                    const currentMenuType = menuResponseData?.menuType || 'daily'; // Fallback needed
+                    // Define menuType relying only on state or default (Removed suggestionData check)
+                    let currentMenuType: 'daily' | 'weekly' = menuResponseData?.menuType || 'daily';
+                    // Prepare text for speak/copy
+                    const textToSpeak = message.modificationReasoning || message.modificationAnalysis || "Thực đơn đã được cập nhật.";
+                    const textToCopy = JSON.stringify(message.modifiedMenuData, null, 2);
                     return (
                         <div className={botMessageContainerClass}>
                             <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
-                            <div className={cn(botMessageBubbleClass, "space-y-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700")}>
-                                <div className="flex items-center text-sm font-medium text-blue-800 dark:text-blue-200">
-                                    <Info className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span>Thực đơn đã cập nhật theo gợi ý:</span>
+                            <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                                <div className={cn(botMessageBubbleClass, "space-y-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700")}>
+                                    <div className="flex items-center text-sm font-medium text-blue-800 dark:text-blue-200">
+                                        <Info className="h-4 w-4 mr-2 flex-shrink-0" />
+                                        <span>Thực đơn đã cập nhật theo gợi ý:</span>
+                                    </div>
+                                    {message.modificationReasoning && (
+                                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                                            <p className="font-semibold">Lý do:</p>
+                                            <p>{message.modificationReasoning}</p>
+                                        </div>
+                                    )}
+                                    {message.modificationAnalysis && (
+                                         <div className="text-sm text-gray-700 dark:text-gray-300 pt-2 border-t border-blue-200 dark:border-blue-700/50">
+                                            <p className="font-semibold">Phân tích:</p>
+                                            <p>{message.modificationAnalysis}</p>
+                                        </div>
+                                    )}
+                                    {/* Removed overflow-hidden */}
+                                    <div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 mt-2 overflow-x-auto">
+                                        <InteractiveMenu
+                                            menuData={{ menu: message.modifiedMenuData, menuType: currentMenuType }}
+                                            onExportIngredients={handleExportIngredientsCallback}
+                                            onPromptClick={handlePromptClick} // Pass the handler here
+                                        />
+                                    </div>
                                 </div>
-                                {message.modificationReasoning && (
-                                    <div className="text-sm text-gray-700 dark:text-gray-300">
-                                        <p className="font-semibold">Lý do:</p>
-                                        <p>{message.modificationReasoning}</p>
-                                    </div>
-                                )}
-                                {message.modificationAnalysis && (
-                                     <div className="text-sm text-gray-700 dark:text-gray-300 pt-2 border-t border-blue-200 dark:border-blue-700/50">
-                                        <p className="font-semibold">Phân tích:</p>
-                                        <p>{message.modificationAnalysis}</p>
-                                    </div>
-                                )}
-                                <div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 overflow-hidden mt-2">
-                                    <InteractiveMenu
-                                        menuData={{ menu: message.modifiedMenuData, menuType: currentMenuType }}
-                                        onExportIngredients={handleExportIngredientsCallback}
-                                        onPromptClick={handlePromptClick} // Pass the handler here
-                                    />
+                                {/* Action Buttons */}
+                                <div className={actionButtonContainerClass}>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(textToSpeak)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc Lý do/Phân tích</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(textToCopy)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép JSON Thực đơn</p></TooltipContent></Tooltip></TooltipProvider>
                                 </div>
                             </div>
                         </div>
@@ -924,66 +1113,115 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 }
                 // Otherwise, render the initial menu
                 else if (message.menuData?.menu) {
-                    const greetingText = `Tuyệt vời! Dựa trên yêu cầu của bạn, tôi đã chuẩn bị xong thực đơn ${message.menuData.menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'} rồi đây:`; // Use menuType from message data
-                    return ( <div className={botMessageContainerClass}><Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" /><div className={cn(botMessageBubbleClass, "space-y-3")}><p className="text-sm">{greetingText}</p><div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 overflow-hidden mt-2"><InteractiveMenu menuData={{ menu: message.menuData.menu, menuType: message.menuData.menuType, }} onExportIngredients={handleExportIngredientsCallback} onPromptClick={handlePromptClick} /></div>{message.menuData.feedbackRequest && ( <p className="text-sm italic mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">{message.menuData.feedbackRequest}</p> )}</div></div> );
+                    // Define greetingText and prepare text for speak/copy
+                    const greetingText = `Tuyệt vời! Dựa trên yêu cầu của bạn, tôi đã chuẩn bị xong thực đơn ${message.menuData.menuType === 'daily' ? 'hàng ngày' : 'hàng tuần'} rồi đây:`;
+                    const textToSpeak = greetingText + (message.menuData.feedbackRequest ? ` ${message.menuData.feedbackRequest}` : '');
+                    const textToCopy = JSON.stringify(message.menuData.menu, null, 2);
+                    return (
+                         <div className={botMessageContainerClass}>
+                            <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                            <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                                <div className={cn(botMessageBubbleClass, "space-y-3")}>
+                                    <p className="text-sm">{greetingText}</p>
+                                     {/* Removed overflow-hidden */}
+                                    <div className="bg-card dark:bg-gray-800 p-0 rounded-md shadow-sm border border-border/50 mt-2 overflow-x-auto">
+                                    {/* Added null check for menuData */}
+                                    <InteractiveMenu
+                                        menuData={{ menu: message.menuData?.menu ?? {}, menuType: message.menuData?.menuType ?? 'daily' }} // Added null checks
+                                        onExportIngredients={handleExportIngredientsCallback}
+                                        onPromptClick={handlePromptClick}
+                                    />
+                                </div>
+                                {message.menuData?.feedbackRequest && ( // Added optional chaining
+                                    <p className="text-sm italic mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                        {message.menuData.feedbackRequest}
+                                    </p>
+                                    )}
+                                </div>
+                                {/* Action Buttons */}
+                                <div className={actionButtonContainerClass}>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(textToSpeak)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc Lời chào/Yêu cầu</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(textToCopy)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép JSON Thực đơn</p></TooltipContent></Tooltip></TooltipProvider>
+                                </div>
+                            </div>
+                        </div>
+                     );
                 }
                 return null; // Should not happen if type is 'component'
             case 'suggestion_display': // Keep this case for potential fallback or if we decide to show raw JSON sometimes
-                    return message.suggestionData && 'modifiedMenu' in message.suggestionData && message.suggestionData.modifiedMenu ? ( // Check if it's not an error object
-                        <div className={botMessageContainerClass}>
-                            <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
-                            <div className={cn(botMessageBubbleClass, "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700")}>
-                                <div className="flex items-center text-sm font-medium mb-2">
-                                    <Info className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span>Gợi ý chỉnh sửa từ AI (Raw JSON)</span>
+                    // Define suggestion variable outside the return statement
+            case 'suggestion_display': // Keep this case for potential fallback or if we decide to show raw JSON sometimes
+                    // Define suggestion variable outside the return statement
+                    const suggestion = message.suggestionData;
+                    // Type guard to ensure suggestion is the correct type *before* accessing properties
+                    if (suggestion && 'responseType' in suggestion && suggestion.responseType === 'menu_modification' && suggestion.modifiedMenu) {
+                        // Prepare text for speak/copy *inside* the valid block
+                        const suggestionTextToSpeak = suggestion.reasoning || "Gợi ý chỉnh sửa.";
+                        const suggestionTextToCopy = suggestion.modifiedMenu;
+                        return (
+                            <div className={botMessageContainerClass}>
+                                <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
+                                <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                                    <div className={cn(botMessageBubbleClass, "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700")}>
+                                        <div className="flex items-center text-sm font-medium mb-2">
+                                            <Info className="h-4 w-4 mr-2 flex-shrink-0" />
+                                            <span>Gợi ý chỉnh sửa từ AI (Raw JSON)</span>
+                                        </div>
+                                        {suggestion.reasoning && (
+                                            <div className="mb-2">
+                                                <p className="text-sm font-semibold">Lý do:</p>
+                                                <p className="text-sm">{suggestion.reasoning}</p>
+                                            </div>
+                                        )}
+                                        {/* No need to check suggestion.modifiedMenu again here, already checked in the if */}
+                                        <div>
+                                            <p className="text-sm font-semibold mb-1">Thực đơn đề xuất (JSON):</p>
+                                            <ScrollArea className="w-full rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 p-2">
+                                                <pre className="whitespace-pre-wrap font-mono text-xs text-gray-700 dark:text-gray-300 break-all">{suggestion.modifiedMenu}</pre>
+                                            </ScrollArea>
+                                        </div>
+                                    </div>
+                                    {/* Action Buttons */}
+                                    <div className={actionButtonContainerClass}>
+                                        <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(suggestionTextToSpeak)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc Lý do</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(suggestionTextToCopy)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép JSON Gợi ý</p></TooltipContent></Tooltip></TooltipProvider>
+                                    </div>
                                 </div>
-                                {message.suggestionData.reasoning && (
-                                    <div className="mb-2">
-                                        <p className="text-sm font-semibold">Lý do:</p>
-                                        <p className="text-sm">{message.suggestionData.reasoning}</p>
-                                    </div>
-                                )}
-                                {message.suggestionData.modifiedMenu && (
-                                    <div>
-                                        <p className="text-sm font-semibold mb-1">Thực đơn đề xuất (JSON):</p>
-                                        <ScrollArea className="w-full rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 p-2">
-                                            <pre className="whitespace-pre-wrap font-mono text-xs text-gray-700 dark:text-gray-300 break-all">{message.suggestionData.modifiedMenu}</pre>
-                                        </ScrollArea>
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    ) : null;
+                        );
+                    }
+                    // If suggestion is not valid for display, return null
+                    return null;
             case 'suggestion_chip':
-                 return message.searchSuggestionHtml ? ( <div className={botMessageContainerClass}><Search className="w-6 h-6 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 opacity-80" /><div className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl" dangerouslySetInnerHTML={{ __html: message.searchSuggestionHtml }} /></div> ) : null;
+                 // Add check for searchSuggestionHtml and fallback for dangerouslySetInnerHTML
+                 return message.searchSuggestionHtml ? ( <div className={botMessageContainerClass}><Search className="w-6 h-6 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-1 opacity-80" /><div className="max-w-full sm:max-w-md lg:max-w-xl xl:max-w-2xl" dangerouslySetInnerHTML={{ __html: message.searchSuggestionHtml || '' }} /></div> ) : null;
             case 'export_display': // <-- New case for exported markdown
-                return message.exportMarkdown ? (
+                 return message.exportMarkdown ? (
                     <div className={botMessageContainerClass}>
                         <Bot className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-1" />
-                        <div className={cn(botMessageBubbleClass, "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 relative group")}>
-                            <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 dark:text-gray-200">
-                                {message.exportMarkdown}
-                            </pre>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute top-1 right-1 h-6 w-6 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => handleCopy(message.exportMarkdown)} // Pass handleCopy
-                                        >
-                                            <ClipboardCopy className="h-3.5 w-3.5" />
-                                            <span className="sr-only">Sao chép</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left"><p>Sao chép</p></TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                        <div className="flex flex-col items-start relative pb-8"> {/* Added relative and padding-bottom */}
+                            <div className={cn(botMessageBubbleClass, "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700")}>
+                                <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 dark:text-gray-200">
+                                    {message.exportMarkdown}
+                                </pre>
+                            </div>
+                             {/* Action Buttons - Positioned absolutely within the padded space */}
+                             <div className={actionButtonContainerClass}>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleSpeak(message.exportMarkdown)}><Volume2 className="h-3.5 w-3.5" /><span className="sr-only">Đọc</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Đọc</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('like', message.id)}><ThumbsUp className="h-3.5 w-3.5" /><span className="sr-only">Thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleFeedbackAction('dislike', message.id)}><ThumbsDown className="h-3.5 w-3.5" /><span className="sr-only">Không thích</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Không thích</p></TooltipContent></Tooltip></TooltipProvider>
+                                {/* Existing Copy Button */}
+                                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className={actionButtonClass} onClick={() => handleCopy(message.exportMarkdown)}><ClipboardCopy className="h-3.5 w-3.5" /><span className="sr-only">Sao chép</span></Button></TooltipTrigger><TooltipContent side="bottom"><p>Sao chép</p></TooltipContent></Tooltip></TooltipProvider>
+                            </div>
                         </div>
                     </div>
                 ) : null;
             case 'bot_thinking': // <-- New case for feedback thinking animation
+                // No action buttons for thinking animation
                 return (
                     <div className={botMessageContainerClass}>
                         <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1 opacity-50" />
@@ -1000,14 +1238,15 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
     // --- Main JSX ---
     return (
-        <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
+        // Removed overflow-hidden from outermost div
+        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-x-auto ">
             <Sidebar />
 
-            {/* Main Content Area */}
-            <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Main Content Area - Removed items-center */}
+            <div className="flex flex-col flex-1 min-w-0 overflow-x-auto"> {/* Added min-w-0 */}
 
-                {/* --- Top Action Buttons --- */}
-                <div className="px-2 md:px-4 pt-2 md:pt-4 pb-1 flex justify-end gap-2 shrink-0">
+                {/* --- Top Action Buttons - Removed max-w-4xl and mx-auto --- */}
+                <div className="px-2 md:px-4 pt-2 md:pt-4 pb-1 flex justify-end gap-2 shrink-0 w-full">
                      {/* Download Button */}
                      <TooltipProvider>
                         <Tooltip>
@@ -1047,14 +1286,14 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                     </Button>
                 </div>
 
-                {/* --- Preferences Card (Collapsible Section) --- */}
+                {/* --- Preferences Card (Collapsible Section) - Removed max-w-4xl and mx-auto --- */}
                 {/* Apply transition and conditional max-height/opacity */}
                 <div className={cn(
-                    "transition-all duration-300 ease-in-out overflow-hidden",
+                    "transition-all duration-300 ease-in-out overflow-x-auto w-full px-2 md:px-4", // Use padding instead of px-0, removed max-w and mx-auto
                     isPreferenceSectionOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0" // Adjust max-h if needed
                 )}>
                     <Card className={cn(
-                        "mx-2 md:mx-4 mb-2 md:mb-4 rounded-lg shadow-lg bg-white dark:bg-gray-800 shrink-0 border dark:border-gray-700",
+                        "mb-2 md:mb-4 rounded-lg shadow-lg bg-white dark:bg-gray-800 shrink-0 border dark:border-gray-700", // Keep card styles
                         // Remove mobile-specific hiding classes here
                     )}>
                         <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b dark:border-gray-700/50">
@@ -1199,14 +1438,15 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
 
                 {/* --- Chat History Area --- */}
                 {/* flex-1 ensures it takes remaining space. Added pt-0 to remove gap when preferences are hidden */}
-                {/* Assign the ref to the ScrollArea */}
-                <ScrollArea ref={chatScrollAreaRef} className="flex-1 p-4 pt-0 bg-white dark:bg-gray-800/50">
+                {/* Assign the ref to the ScrollArea - Removed max-w-4xl and mx-auto */}
+                <ScrollArea ref={chatScrollAreaRef} className="flex-1 bg-white dark:bg-gray-800/50 w-full overflow-x-auto"> {/* Removed padding */}
                     {isGeneratingMenu && ( // Show thinking only during initial generation, using specific state
                          <div className="flex justify-center py-4">
                             <ThinkingAnimation />
                          </div>
                     )}
-                    <div className="space-y-5 max-w-4xl mx-auto pb-4">
+                    {/* Removed max-w-4xl and mx-auto to allow full width */}
+                    <div className="space-y-5 p-4 pt-0 pb-4 min-w-full "> {/* Added padding here */}
                         {chatHistory.map((message) => (
                             <div key={message.id} className="flex w-full">
                                 {renderMessageContent(message)}
@@ -1217,12 +1457,13 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
                 </ScrollArea>
 
                 {/* --- Feedback Input Area (Sticky Bottom) --- */}
-                {/* Logic for hiding/showing based on menu data remains */}
+                {/* Logic for hiding/showing based on menu data remains - Removed max-w-4xl and mx-auto */}
                 <div className={cn(
-                    "p-3 md:p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0 z-10 shadow- ऊपर-md transition-opacity duration-300 ease-in-out",
+                    "p-3 md:p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 sticky bottom-0 z-10 shadow- ऊपर-md transition-opacity duration-300 ease-in-out w-full",
                     menuResponseData?.menu ? "opacity-100" : "opacity-0 pointer-events-none h-0 p-0 border-0"
                 )}>
-                    <div className="max-w-4xl mx-auto">
+                    {/* Container takes full width */}
+                    <div>
                         <div className="flex items-center gap-2">
                             <div className="relative flex-grow">
                                 <label htmlFor="feedback-input" className="sr-only">Nhập phản hồi</label>
@@ -1231,7 +1472,7 @@ const HomePage: React.FC<HomePageProps> = ({ chatId }) => { // Accept chatId pro
     placeholder="Nhập phản hồi hoặc yêu cầu chỉnh sửa..."
     value={feedback}
     onChange={handleFeedbackChange}
-    className="flex-grow resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 pr-10"
+    className="resize-none rounded-full px-4 py-2 border text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 pr-10"
     disabled={isGeneratingMenu || isSuggestingModifications} // Allow input even if modifications exist
     onKeyDown={(e) => {
         // Remove !menuModifications check to allow Enter submission multiple times
