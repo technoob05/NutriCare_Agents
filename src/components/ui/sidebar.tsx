@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Plus, MessageSquare, Settings, HelpCircle, Utensils, Menu, X, FileUp, Home, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'; // Added ChevronLeft/Right
+import { Plus, MessageSquare, Settings, HelpCircle, Utensils, Menu, X, FileUp, Home, Trash2, ChevronLeft, ChevronRight, Mic, Camera } from 'lucide-react'; // Added Mic, Camera, ChevronLeft/Right
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from "@/components/ui/input";
@@ -240,6 +240,40 @@ export function Sidebar() {
                         <Button variant="ghost" className="w-full justify-start">
                             <Home className="mr-2 h-4 w-4" />
                             Trang chủ
+                        </Button>
+                    </Link>
+
+                    {/* Add Voice Chat Link */}
+                    <Link href="/voice" passHref>
+                        <Button variant="ghost" className="w-full justify-start">
+                            <Mic className="mr-2 h-4 w-4" />
+                            Chat bằng giọng nói
+                        </Button>
+                    </Link>
+
+                    {/* Add Recognize Meal Link */}
+                    <Link href="/recognize-meal" passHref>
+                        <Button variant="ghost" className="w-full justify-start">
+                            <Camera className="mr-2 h-4 w-4" />
+                            Nhận diện món ăn
+                        </Button>
+                    </Link>
+
+                    {/* Add AI Explainer Link */}
+                    <Link href="/ai-explainer" passHref>
+                        <Button variant="ghost" className="w-full justify-start">
+                            {/* You might want to choose a more specific icon */}
+                            <HelpCircle className="mr-2 h-4 w-4" /> 
+                            AI Explainer
+                        </Button>
+                    </Link>
+
+                    {/* Add Pantry Tracker Link */}
+                    <Link href="/pantry-tracker" passHref>
+                        <Button variant="ghost" className="w-full justify-start">
+                            {/* You might want to choose a more specific icon */}
+                            <Utensils className="mr-2 h-4 w-4" /> 
+                            Pantry Tracker
                         </Button>
                     </Link>
 

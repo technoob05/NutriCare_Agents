@@ -1,0 +1,106 @@
+{"level":30,"time":1745323928276,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Logger initialized successfully. Attempting to write to file."}
+{"level":30,"time":1745323928692,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Received ingredients: gà, thịt bò, cơm gà. Web search enabled: true"}
+{"level":30,"time":1745323928692,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to read CSV: /home/user/studio/public/data/vn_food_translated.csv"}
+{"level":30,"time":1745323929261,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Finished CSV processing. Found 0 potential matches."}
+{"level":30,"time":1745323929261,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"No local recipes found. Performing web search for: gà, thịt bò, cơm gà"}
+{"level":30,"time":1745323930711,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found 10 web results."}
+{"level":30,"time":1745323930711,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Added 5 web suggestions."}
+{"level":30,"time":1745323930712,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Searching YouTube for: \"gà thịt bò cơm gà\""}
+{"level":30,"time":1745323931165,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found 3 YouTube results."}
+{"level":30,"time":1745323931165,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Starting enrichment for 5 CSV/Web suggestions and 3 YouTube suggestions."}
+{"level":30,"time":1745323931166,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge"}
+{"level":30,"time":1745323931166,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://feedthepudge.com/vietnamese-chicken-and-rice-com-ga-hoi-an/"}
+{"level":30,"time":1745323932693,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Performing fallback image search for: Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge"}
+{"level":30,"time":1745323933610,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found image via search: https://static.vinwonders.com/2022/10/com-ga-hoi-an-1-1.jpg"}
+{"level":30,"time":1745323933611,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge"}
+{"level":30,"time":1745323935330,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge"}
+{"level":30,"time":1745323935330,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Grilled Chicken (Thịt Gà Nướng) | Simple Vietnamese Food"}
+{"level":30,"time":1745323935330,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://simplevietnamesefood.com/grilled-chicken-thit-ga-nuong/"}
+{"level":30,"time":1745323935588,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://simplevietnamesefood.com/wp-content/uploads/2022/05/IMG_3848-grilled-chicken-and-jasmine-rice-.jpg"}
+{"level":30,"time":1745323935592,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Grilled Chicken (Thịt Gà Nướng) | Simple Vietnamese Food"}
+{"level":30,"time":1745323936440,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Grilled Chicken (Thịt Gà Nướng) | Simple Vietnamese Food"}
+{"level":30,"time":1745323936441,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Cơm Gà Instant Pot (Vietnamese Chicken Rice)"}
+{"level":30,"time":1745323936441,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://katiestestkitchen.com/portfolio/com-ga-instant-pot-vietnamese-chicken-rice/"}
+{"level":30,"time":1745323936630,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://i0.wp.com/katiestestkitchen.com/wp-content/uploads/2021/01/20210129_131829.jpg?resize=1200%2C1200&ssl=1"}
+{"level":30,"time":1745323936630,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Cơm Gà Instant Pot (Vietnamese Chicken Rice)"}
+{"level":30,"time":1745323937508,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Cơm Gà Instant Pot (Vietnamese Chicken Rice)"}
+{"level":30,"time":1745323937508,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Grilled Chicken in 5 Flavors with Rice Recipe (Cơm Gà Nướng Ngũ Vị Hương)"}
+{"level":30,"time":1745323937508,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://vietnamesefood.com.vn/vietnamese-recipes/vietnamese-dish-recipes/grilled-chicken-in-5-flavors-with-rice-recipe-com-ga-nuong-ngu-vi-huong.html"}
+{"level":30,"time":1745323937752,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Performing fallback image search for: Grilled Chicken in 5 Flavors with Rice Recipe (Cơm Gà Nướng Ngũ Vị Hương)"}
+{"level":50,"time":1745323937990,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Error during fallback image search for Grilled Chicken in 5 Flavors with Rice Recipe (Cơm Gà Nướng Ngũ Vị Hương):"}
+{"level":30,"time":1745323937994,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Grilled Chicken in 5 Flavors with Rice Recipe (Cơm Gà Nướng Ngũ Vị Hương)"}
+{"level":30,"time":1745323938934,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Grilled Chicken in 5 Flavors with Rice Recipe (Cơm Gà Nướng Ngũ Vị Hương)"}
+{"level":30,"time":1745323938934,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: 12 Tasty Vietnamese Chicken Recipes You Can Make At Home"}
+{"level":30,"time":1745323938934,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://savourthepho.com/vietnamese-chicken-recipes/"}
+{"level":30,"time":1745323939504,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://savourthepho.com/wp-content/uploads/2024/10/Vietnamese-Chicken-Recipes-1.jpg"}
+{"level":30,"time":1745323939504,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: 12 Tasty Vietnamese Chicken Recipes You Can Make At Home"}
+{"level":30,"time":1745323940431,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for 12 Tasty Vietnamese Chicken Recipes You Can Make At Home"}
+{"level":30,"time":1745323940431,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Cơm Gà Hải Nam - Cách nấu Cơm gà và Luộc gà làm món Cơm Gà Hải Nam ngon | Kỹ Năng Vào Bếp"}
+{"level":30,"time":1745323941334,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Cơm Gà Hải Nam - Cách nấu Cơm gà và Luộc gà làm món Cơm Gà Hải Nam ngon | Kỹ Năng Vào Bếp"}
+{"level":30,"time":1745323941334,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Cách làm CƠM GÀ XỐI MỠ ngon khó cưỡng ngoài giòn trong mềm đúng điệu | Greatest Fried Chicken Rice"}
+{"level":30,"time":1745323942286,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Cách làm CƠM GÀ XỐI MỠ ngon khó cưỡng ngoài giòn trong mềm đúng điệu | Greatest Fried Chicken Rice"}
+{"level":30,"time":1745323942286,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Cách Làm Cơm Gà Cực Kỳ Ngon | HÀ COOKING"}
+{"level":30,"time":1745323943197,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Cách Làm Cơm Gà Cực Kỳ Ngon | HÀ COOKING"}
+{"level":30,"time":1745323943198,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Attempting Wikipedia enrichment for top result: Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge"}
+{"level":40,"time":1745323943752,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"No suitable Wikipedia content found for: Vietnamese Chicken and Rice / Com Ga Hoi An - feedthepudge (món ăn)"}
+{"level":30,"time":1745323943752,"pid":66876,"hostname":"idx-studio-1744252608515","msg":"Returning 8 final suggestions."}
+{"level":30,"time":1745335763524,"pid":14096,"hostname":"idx-studio-1744252608515","msg":"Logger initialized successfully. Attempting to write to file."}
+{"level":30,"time":1745335763525,"pid":14096,"hostname":"idx-studio-1744252608515","path":"google-credentials.json","msg":"[TTS API Startup] GOOGLE_APPLICATION_CREDENTIALS is set."}
+{"level":30,"time":1745335763730,"pid":14096,"hostname":"idx-studio-1744252608515","msg":"[TTS API Startup] Google Cloud Text-to-Speech client initialized successfully."}
+{"level":30,"time":1745335763739,"pid":14096,"hostname":"idx-studio-1744252608515","requestId":"TTS-Req-1745335763737","textSnippet":"Xin lỗi, thông tin từ nguồn tham khảo chưa đủ chi ","msg":"Received TTS request."}
+{"level":30,"time":1745335763739,"pid":14096,"hostname":"idx-studio-1744252608515","requestId":"TTS-Req-1745335763737","msg":"Sending request to Google Cloud TTS API..."}
+{"level":30,"time":1745335764206,"pid":14096,"hostname":"idx-studio-1744252608515","requestId":"TTS-Req-1745335763737","durationMs":467,"msg":"Received response from Google Cloud TTS API."}
+{"level":30,"time":1745335764207,"pid":14096,"hostname":"idx-studio-1744252608515","requestId":"TTS-Req-1745335763737","audioBytes":47616,"msg":"Successfully synthesized audio."}
+{"level":30,"time":1745336719465,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Logger initialized successfully. Attempting to write to file."}
+{"level":30,"time":1745336720143,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Received ingredients: thịt, gà, trứng. Web search enabled: true"}
+{"level":30,"time":1745336720144,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to read CSV: /home/user/studio/public/data/vn_food_translated.csv"}
+{"level":50,"time":1745336720504,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Critical error in /api/suggest-recipes:"}
+{"level":30,"time":1745336720868,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Finished CSV processing. Found 0 potential matches."}
+{"level":30,"time":1745336720872,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"No local recipes found. Performing web search for: thịt, gà, trứng"}
+{"level":30,"time":1745336722229,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found 10 web results."}
+{"level":30,"time":1745336722229,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Added 5 web suggestions."}
+{"level":30,"time":1745336722231,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Searching YouTube for: \"thịt gà trứng\""}
+{"level":30,"time":1745336722649,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found 3 YouTube results."}
+{"level":30,"time":1745336722649,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Starting enrichment for 5 CSV/Web suggestions and 3 YouTube suggestions."}
+{"level":30,"time":1745336722649,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336722649,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://www.thesavorychopstick.com/thit-kho-trung/"}
+{"level":30,"time":1745336724611,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://www.thesavorychopstick.com/wp-content/uploads/2022/10/Thit-Kho-Braised-Pork.jpg"}
+{"level":30,"time":1745336724616,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336726399,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336726402,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Thịt Kho Trứng (Vietnamese Braised Pork Belly with Eggs)"}
+{"level":30,"time":1745336726402,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://vickypham.com/blog/braised-pork-and-boiled-eggs-in-coconut-juice-thit-kho-tau/"}
+{"level":30,"time":1745336726869,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://vickypham.com/wp-content/uploads/2024/11/Thit-Kho-Trung-with-Rice_6-1-1024x1024.jpg"}
+{"level":30,"time":1745336726870,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Thịt Kho Trứng (Vietnamese Braised Pork Belly with Eggs)"}
+{"level":30,"time":1745336727932,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Thịt Kho Trứng (Vietnamese Braised Pork Belly with Eggs)"}
+{"level":30,"time":1745336727935,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Thịt Kho Trứng Recipe - Chef Tu David Phu: Vietnamese American ..."}
+{"level":30,"time":1745336727935,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://cheftu.com/recipelibrary/thitkhotrung"}
+{"level":30,"time":1745336729234,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found og:image: http://static1.squarespace.com/static/56cf7cfb0442626af6cd8f70/t/67943a95a815a2230aaef14d/1737767576496/paDsJSA.jpg?format=1500w"}
+{"level":30,"time":1745336729234,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Thịt Kho Trứng Recipe - Chef Tu David Phu: Vietnamese American ..."}
+{"level":30,"time":1745336730162,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Thịt Kho Trứng Recipe - Chef Tu David Phu: Vietnamese American ..."}
+{"level":30,"time":1745336730162,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Thịt Kho (Vietnamese Braised Pork and Eggs) - Savory Sweet Spoon"}
+{"level":30,"time":1745336730165,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://www.savorysweetspoon.com/thit-kho-vietnamese-braised-pork-and-eggs/"}
+{"level":30,"time":1745336731744,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://www.savorysweetspoon.com/wp-content/uploads/2024/12/Thit-Kho-1215edit-1x1-1.jpg"}
+{"level":30,"time":1745336731744,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Thịt Kho (Vietnamese Braised Pork and Eggs) - Savory Sweet Spoon"}
+{"level":30,"time":1745336732683,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Thịt Kho (Vietnamese Braised Pork and Eggs) - Savory Sweet Spoon"}
+{"level":30,"time":1745336732684,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: Thịt Kho Trứng (Braised Pork Belly and Eggs) - Simply Recipes"}
+{"level":30,"time":1745336732684,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://www.simplyrecipes.com/thit-kho-trung-braised-pork-belly-and-eggs-recipe-5213892"}
+{"level":30,"time":1745336733446,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found og:image: https://www.simplyrecipes.com/thmb/Xug_SE7nHQFMgoDQ441hE6bDNIk=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/Simply-Recipes-Thit-Kho-Trung-LEAD-05-eb4d9349bf9d46e08390e9d2ebdf0c1d.jpg"}
+{"level":30,"time":1745336733447,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Thịt Kho Trứng (Braised Pork Belly and Eggs) - Simply Recipes"}
+{"level":30,"time":1745336734316,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Thịt Kho Trứng (Braised Pork Belly and Eggs) - Simply Recipes"}
+{"level":30,"time":1745336734317,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Chỉ cần đổ trứng vào thịt ức gà, bạn sẽ có ngay món ăn ngon đến bất ngờ  | Chicken breast with egg"}
+{"level":30,"time":1745336735191,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Chỉ cần đổ trứng vào thịt ức gà, bạn sẽ có ngay món ăn ngon đến bất ngờ  | Chicken breast with egg"}
+{"level":30,"time":1745336735191,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: THỊT ỨC GÀ làm cách này cả nhà ai cũng khen ngon, ức gà không hề bị khô | Chicken Breast Recipe"}
+{"level":30,"time":1745336736096,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for THỊT ỨC GÀ làm cách này cả nhà ai cũng khen ngon, ức gà không hề bị khô | Chicken Breast Recipe"}
+{"level":30,"time":1745336736096,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: Tập 43: Hướng Dẫn Làm Món Trứng Gà Ngâm Tương Cực Kì Ngon Và Đơn Giản - Chef Hoshi Phan"}
+{"level":30,"time":1745336736993,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for Tập 43: Hướng Dẫn Làm Món Trứng Gà Ngâm Tương Cực Kì Ngon Và Đơn Giản - Chef Hoshi Phan"}
+{"level":30,"time":1745336736993,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting Wikipedia enrichment for top result: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336738629,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found Wikipedia page for The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336738676,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Attempting to find image URL for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336738676,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Fetching source URL for image extraction: https://vi.wikipedia.org/wiki/The_Best_Th%E1%BB%8Bt_Kho_Tr%E1%BB%A9ng_-_Easy_Vietnamese_Braised_Pork"}
+{"level":40,"time":1745336739285,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Failed to fetch source URL https://vi.wikipedia.org/wiki/The_Best_Th%E1%BB%8Bt_Kho_Tr%E1%BB%A9ng_-_Easy_Vietnamese_Braised_Pork, status: 404"}
+{"level":30,"time":1745336739285,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Performing fallback image search for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336740503,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Found image via search: https://i0.wp.com/www.thesavorychopstick.com/wp-content/uploads/2022/10/Thit-Kho-Braised-Pork-768x1024.jpg?resize=768%2C1024&ssl=1"}
+{"level":30,"time":1745336740503,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Generating AI description and tags for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336741397,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"AI enrichment successful for The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336741397,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Added suggestion from Wikipedia source for: The Best Thịt Kho Trứng - Easy Vietnamese Braised Pork"}
+{"level":30,"time":1745336741397,"pid":24293,"hostname":"idx-studio-1744252608515","msg":"Returning 9 final suggestions."}

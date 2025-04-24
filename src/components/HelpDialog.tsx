@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link'; // Import Link
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { Users, Info, Mail, Code, ChevronRight, Star, Sparkles } from "lucide-react";
@@ -7,7 +8,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     // Enhanced animations
     const fadeIn = {
         hidden: { opacity: 0, y: 20 },
-        visible: (i) => ({
+        visible: (i: number) => ({ // Add type number to i
             opacity: 1,
             y: 0,
             transition: {
@@ -20,7 +21,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
     const sectionVariants = {
         hidden: { opacity: 0, x: -20 },
-        visible: (i) => ({
+        visible: (i: number) => ({ // Add type number to i
             opacity: 1,
             x: 0,
             transition: {
@@ -61,36 +62,36 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 >
                     {/* Glowing accent border */}
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-600 to-cyan-400" />
-                    
+
                     {/* Animated accent corners */}
-                    <motion.div 
-                        className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-blue-400 rounded-tl-lg" 
+                    <motion.div
+                        className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-blue-400 rounded-tl-lg"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
                     />
-                    <motion.div 
-                        className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-purple-500 rounded-tr-lg" 
+                    <motion.div
+                        className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-purple-500 rounded-tr-lg"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3, duration: 0.5 }}
                     />
-                    <motion.div 
-                        className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-400 rounded-bl-lg" 
+                    <motion.div
+                        className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-400 rounded-bl-lg"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
                     />
-                    <motion.div 
-                        className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-blue-500 rounded-br-lg" 
+                    <motion.div
+                        className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-blue-500 rounded-br-lg"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5, duration: 0.5 }}
                     />
-                    
+
                     {/* Subtle background pattern */}
                     <div className="absolute inset-0 bg-[radial-gradient(#224488_1px,transparent_1px)] dark:bg-[radial-gradient(#224477_1px,transparent_1px)] [background-size:20px_20px] opacity-5 z-0" />
-                    
+
                     <DialogHeader className="px-8 pt-8 pb-2 relative z-10">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
@@ -103,7 +104,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                             </div>
                             <DialogTitle className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                                 Thông tin & Hỗ trợ
-                                <motion.span 
+                                <motion.span
                                     initial={{ opacity: 0, scale: 0 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ delay: 0.5, type: "spring", stiffness: 500 }}
@@ -126,7 +127,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
                     <div className="py-6 px-8 relative z-10">
                         <div className="space-y-5">
-                            <motion.div 
+                            <motion.div
                                 custom={0}
                                 initial="hidden"
                                 animate="visible"
@@ -140,7 +141,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-white mb-1 text-lg">Team</h3>
-                                            <motion.div 
+                                            <motion.div
                                                 variants={glowEffect}
                                                 className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-300 border border-blue-500/30"
                                             >
@@ -152,7 +153,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                 </div>
                             </motion.div>
 
-                            <motion.div 
+                            <motion.div
                                 custom={1}
                                 initial="hidden"
                                 animate="visible"
@@ -166,7 +167,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-white mb-2 text-lg">Thành Viên</h3>
-                                            <motion.div 
+                                            <motion.div
                                                 variants={glowEffect}
                                                 className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-300 border border-purple-500/30"
                                             >
@@ -175,7 +176,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                         </div>
                                         <ul className="space-y-2 mt-3">
                                             {teamMembers.map((member, index) => (
-                                                <motion.li 
+                                                <motion.li
                                                     key={index}
                                                     custom={index}
                                                     initial="hidden"
@@ -197,7 +198,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                 </div>
                             </motion.div>
 
-                            <motion.div 
+                            <motion.div
                                 custom={2}
                                 initial="hidden"
                                 animate="visible"
@@ -211,7 +212,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-white mb-1 text-lg">Hướng dẫn</h3>
-                                            <motion.div 
+                                            <motion.div
                                                 variants={glowEffect}
                                                 className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-cyan-600/20 to-blue-600/20 text-cyan-300 border border-cyan-500/30"
                                             >
@@ -222,15 +223,17 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                             Để sử dụng ứng dụng, hãy nhập thông tin sức khỏe của bạn và chọn các tùy chọn thực đơn.
                                             Bạn có thể tùy chỉnh các tùy chọn này theo sở thích cá nhân.
                                         </p>
-                                        <div className="mt-3 flex items-center text-cyan-400 text-sm font-medium cursor-pointer hover:text-cyan-300 transition-colors group">
-                                            Xem thêm
-                                            <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
-                                        </div>
+                                        <Link href="/help" passHref>
+                                            <div className="mt-3 flex items-center text-cyan-400 text-sm font-medium cursor-pointer hover:text-cyan-300 transition-colors group">
+                                                Xem thêm
+                                                <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                                            </div>
+                                        </Link>
                                     </div>
                                 </div>
                             </motion.div>
 
-                            <motion.div 
+                            <motion.div
                                 custom={3}
                                 initial="hidden"
                                 animate="visible"
@@ -244,7 +247,7 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between">
                                             <h3 className="font-medium text-white mb-1 text-lg">Hỗ trợ</h3>
-                                            <motion.div 
+                                            <motion.div
                                                 variants={glowEffect}
                                                 className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-600/20 to-teal-600/20 text-green-300 border border-green-500/30"
                                             >
@@ -252,10 +255,10 @@ export function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                             </motion.div>
                                         </div>
                                         <p className="text-gray-300">
-                                            Liên hệ qua email: 
+                                            Liên hệ qua email:
                                         </p>
-                                        <a 
-                                            href="mailto:duyminh12122005@gmail.com" 
+                                        <a
+                                            href="mailto:duyminh12122005@gmail.com"
                                             className="mt-1 inline-flex items-center px-4 py-2 rounded-lg bg-gradient-to-r from-green-900/40 to-teal-900/40 text-green-300 border border-green-700/50 hover:border-green-500/50 hover:text-green-200 transition-all"
                                         >
                                             duyminh12122005@gmail.com

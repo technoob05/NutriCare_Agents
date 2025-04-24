@@ -18,10 +18,19 @@ const GenerateMenuFromPreferencesInputSchema = z.object({
     menuType: z.enum(['daily', 'weekly']).describe('Menu type (daily or weekly).'),
     userContext: z.object({
         username: z.string().optional().describe("Tên người dùng (nếu có)."),
-        // Add other potential user context fields here as needed
-        // dietaryRestrictions: z.array(z.string()).optional().describe("Các hạn chế ăn uống đã biết."),
-        // healthGoals: z.array(z.string()).optional().describe("Mục tiêu sức khỏe."),
-    }).optional().describe("Thông tin ngữ cảnh về người dùng."),
+        // Explicitly add health info fields
+        age: z.number().positive().nullable().optional().describe("Tuổi."),
+        gender: z.string().optional().describe("Giới tính."),
+        height: z.number().positive().nullable().optional().describe("Chiều cao (cm)."),
+        weight: z.number().positive().nullable().optional().describe("Cân nặng (kg)."),
+        activityLevel: z.string().optional().describe("Mức độ vận động."),
+        allergies: z.string().optional().describe("Dị ứng thực phẩm."),
+        dietaryRestrictions: z.string().optional().describe("Hạn chế ăn uống."),
+        medicalConditions: z.string().optional().describe("Tình trạng sức khỏe liên quan."),
+        healthGoals: z.string().optional().describe("Mục tiêu sức khỏe/dinh dưỡng."),
+        generalFoodPreferences: z.string().optional().describe("Sở thích ăn uống chung (từ form)."),
+        currentRequestPreferences: z.string().optional().describe("Yêu cầu cụ thể cho lần tạo thực đơn này."),
+    }).optional().describe("Thông tin ngữ cảnh về người dùng, bao gồm cả thông tin sức khỏe."),
 });
 export type GenerateMenuFromPreferencesInput = z.infer<typeof GenerateMenuFromPreferencesInputSchema>;
 
@@ -126,9 +135,20 @@ const planMenuStructurePrompt = ai.definePrompt(
                 menuType: z.enum(['daily', 'weekly']),
                 searchContent: z.string().optional(),
                 citations: z.array(CitationSchema).optional(),
-                userContext: z.object({ // Add userContext here too
+                userContext: z.object({ // Explicitly define userContext fields for planning prompt
                     username: z.string().optional(),
-                }).passthrough().optional(), // Allow other fields if needed
+                    age: z.number().positive().nullable().optional(),
+                    gender: z.string().optional(),
+                    height: z.number().positive().nullable().optional(),
+                    weight: z.number().positive().nullable().optional(),
+                    activityLevel: z.string().optional(),
+                    allergies: z.string().optional(),
+                    dietaryRestrictions: z.string().optional(),
+                    medicalConditions: z.string().optional(),
+                    healthGoals: z.string().optional(),
+                    generalFoodPreferences: z.string().optional(),
+                    currentRequestPreferences: z.string().optional(),
+                }).optional(),
             }),
         },
         output: { schema: PlanningOutputSchema },
@@ -166,9 +186,20 @@ const GenerateMenuContentInputSchema = z.object({
     menuType: z.enum(['daily', 'weekly']), // Thêm menuType vào đây
     searchContent: z.string().optional(),
     citations: z.array(CitationSchema).optional(),
-    userContext: z.object({ // Add userContext here too
+    userContext: z.object({ // Explicitly define userContext fields for content prompt
         username: z.string().optional(),
-    }).passthrough().optional(), // Allow other fields if needed
+        age: z.number().positive().nullable().optional(),
+        gender: z.string().optional(),
+        height: z.number().positive().nullable().optional(),
+        weight: z.number().positive().nullable().optional(),
+        activityLevel: z.string().optional(),
+        allergies: z.string().optional(),
+        dietaryRestrictions: z.string().optional(),
+        medicalConditions: z.string().optional(),
+        healthGoals: z.string().optional(),
+        generalFoodPreferences: z.string().optional(),
+        currentRequestPreferences: z.string().optional(),
+    }).optional(),
 });
 type GenerateMenuContentInput = z.infer<typeof GenerateMenuContentInputSchema>;
 
@@ -206,7 +237,7 @@ const generateMenuContentPrompt = ai.definePrompt({
     *   **Đối với mỗi bữa ăn:** Liệt kê các món ăn bằng dấu gạch đầu dòng (\`-\`).
     *   **Đối với mỗi món ăn:** Trình bày thông tin chi tiết theo định dạng sau (mỗi mục trên một dòng mới, bắt đầu bằng dấu \`*\` hoặc tương tự):
         *   \`* Tên món:\` [Tên món ăn]
-        *   \`* Nguyên liệu:\` [Liệt kê nguyên liệu, cách nhau bằng dấu phẩy hoặc xuống dòng]
+        *   \`* Nguyên liệu:\` [Liệt kê nguyên liệu chính, cách nhau bằng dấu phẩy hoặc xuống dòng]
         *   \`* Cách làm:\` [Hướng dẫn tóm tắt]
         *   \`* Chi phí:\` [Ước tính, ví dụ: khoảng 30k] (Nếu có)
         *   \`* Calories:\` [Số calo] (Ước tính, nếu có)
@@ -518,9 +549,9 @@ function selectBestDefaultMenu(preferences: string): DefaultMenuWithMetadata {
         logger.warn(`[Default Menu Selector] No keywords matched preferences. Returning standard family menu.`);
     }
 
-    // Return a copy to avoid potential mutations if the original objects are modified later
+    // Return a deep copy to avoid potential mutations if the original objects are modified later
     // Also, ensure the returned object matches AnyMenuData (Daily or Weekly) by removing extra props
-    const { description, keywords, ...menuData } = bestMatch;
+    const { description, keywords, ...menuData } = JSON.parse(JSON.stringify(bestMatch));
     // We need to cast here because the default menus are currently only DailyMenuData
     // If Weekly defaults were added, more complex logic might be needed.
     return menuData as DailyMenuData & { description: string; keywords: string[] }; // Keep metadata for logging, but the core is DailyMenuData
@@ -625,7 +656,7 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         }
 
         // --- Step 2: Planning Agent (Giữ nguyên) ---
-        const planningStepName = "Bước 2: Lập Kế hoạch & Suy luận (Reasoning)";
+        const planningStepName = "Bước 2: Lập Kế hoạch & Suy luận";
         startTime = Date.now()
         let planningInput = {
             preferences: input.preferences,
@@ -713,7 +744,7 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
 
                 if (!llmReasoning) {
                     logger.warn(`[${writingStepName}] LLM did not provide 'reasoning' field or it was empty. Using fallback.`);
-                    llmReasoning = "(Reasoning không được cung cấp bởi LLM)"; // Assign fallback
+                    llmReasoning = "(LLM không cung cấp suy luận)"; // Assign fallback
                 }
                 step3Reasoning = llmReasoning; // Use the (potentially fallback) reasoning for logs/trace
                 // +++ END: Reasoning Fallback Logic +++
@@ -756,32 +787,63 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
                                 menuContent = dailyMenuData as DailyMenuData; // Assign the selected default Daily menu
                                 step3Status = 'error'; // Keep status as error because original parse failed
                                 step3ErrorDetails = `${originalParseErrorMsg}. Fallback: Used default menu "${selectedDefaultMenu.description}".`;
-                                step3OutputData.parsingStatus = 'FailedWithFallback';
-                                step3OutputData.parsingError = originalParseErrorMsg;
-                                step3OutputData.fallbackMenuUsed = selectedDefaultMenu.description;
-                                step3Reasoning += ` | Lỗi khi phân tích văn bản. Đã sử dụng thực đơn mặc định: "${selectedDefaultMenu.description}".`;
-                                logger.info(`[${writingStepName}] Successfully selected default menu: "${selectedDefaultMenu.description}"`);
-                            } else {
-                                // Handle case where a weekly menu was requested but only daily defaults exist
-                                logger.error(`[${writingStepName}] Parsing failed for weekly menu, and no weekly default menus are defined. Cannot provide fallback.`);
-                                step3Status = 'error';
-                                step3ErrorDetails = `${originalParseErrorMsg}. Fallback failed: No suitable weekly default menu found.`;
-                                step3OutputData.parsingStatus = 'FailedNoFallback';
-                                step3OutputData.parsingError = originalParseErrorMsg;
-                                step3Reasoning += ` | Lỗi khi phân tích văn bản. Không tìm thấy thực đơn mặc định phù hợp cho loại 'weekly'.`;
-                                menuContent = undefined; // Ensure menu is undefined
-                            }
-                        } catch (fallbackError: any) {
-                            logger.error(`[${writingStepName}] Critical error during default menu fallback selection: ${fallbackError.message}`, fallbackError);
+                            step3OutputData.parsingStatus = 'FailedWithFallback';
+                            step3OutputData.parsingError = originalParseErrorMsg;
+                            step3OutputData.fallbackMenuUsed = selectedDefaultMenu.description;
+                            step3Reasoning += ` | Lỗi khi phân tích văn bản. Đã sử dụng thực đơn mặc định: "${selectedDefaultMenu.description}".`; // Already Vietnamese
+                            logger.info(`[${writingStepName}] Successfully selected default daily menu: "${selectedDefaultMenu.description}"`);
+                        } else { // Handle weekly menu fallback by constructing from daily default
+                                logger.warn(`[${writingStepName}] Parsing failed for weekly menu. Constructing fallback weekly menu from default daily menu: "${selectedDefaultMenu.description}"`);
+                                const { description, keywords, ...dailyMenuData } = selectedDefaultMenu;
+                                const fallbackWeeklyMenu: WeeklyMenuData = {
+                                    Monday: dailyMenuData as DailyMenuData,
+                                    Tuesday: dailyMenuData as DailyMenuData,
+                                    Wednesday: dailyMenuData as DailyMenuData,
+                                    Thursday: dailyMenuData as DailyMenuData,
+                                    Friday: dailyMenuData as DailyMenuData,
+                                    Saturday: dailyMenuData as DailyMenuData,
+                                    Sunday: dailyMenuData as DailyMenuData,
+                                };
+                                menuContent = fallbackWeeklyMenu; // Assign the constructed weekly menu
+                                step3Status = 'error'; // Keep status as error because original parse failed
+                                step3ErrorDetails = `${originalParseErrorMsg}. Fallback: Constructed weekly menu using default daily menu "${selectedDefaultMenu.description}".`;
+                            step3OutputData.parsingStatus = 'FailedWithConstructedWeeklyFallback';
+                            step3OutputData.parsingError = originalParseErrorMsg;
+                            step3OutputData.fallbackMenuUsed = `Constructed Weekly from: ${selectedDefaultMenu.description}`;
+                            step3Reasoning += ` | Lỗi khi phân tích văn bản. Đã xây dựng thực đơn tuần mặc định từ thực đơn ngày: "${selectedDefaultMenu.description}".`; // Already Vietnamese
+                            logger.info(`[${writingStepName}] Successfully constructed fallback weekly menu.`);
+                        }
+                    } catch (fallbackError: any) {
+                            logger.error(`[${writingStepName}] Critical error during default menu fallback selection/construction: ${fallbackError.message}`, fallbackError);
                             step3Status = 'error';
                             step3ErrorDetails = `${originalParseErrorMsg}. Fallback selection also failed: ${fallbackError.message}`;
-                            step3OutputData.parsingStatus = 'FailedFallbackFailed';
-                            step3OutputData.parsingError = originalParseErrorMsg;
-                            step3OutputData.fallbackError = fallbackError.message;
-                            step3Reasoning += ` | Lỗi khi phân tích văn bản VÀ lỗi khi chọn thực đơn mặc định: ${fallbackError.message}`;
-                            menuContent = undefined; // Ensure menu is undefined
-                        }
+                        step3OutputData.parsingStatus = 'FailedFallbackFailed';
+                        step3OutputData.parsingError = originalParseErrorMsg;
+                        step3OutputData.fallbackError = fallbackError.message;
+                        step3Reasoning += ` | Lỗi khi phân tích văn bản VÀ lỗi khi chọn thực đơn mặc định: ${fallbackError.message}`; // Already Vietnamese
+                        menuContent = undefined; // Ensure menu is undefined
+                    }
                         // +++ END: Fallback to Default Menu on Parse Error +++
+                    }
+
+                    // Ensure menuContent is not undefined after fallback
+                    if (!menuContent) {
+                        logger.error(`[${writingStepName}] Critical: menuContent is still undefined after all fallbacks! Using last-resort default.`);
+                        const selectedDefaultMenu = selectBestDefaultMenu(input.preferences);
+                        if (input.menuType === 'daily') {
+                            const { description, keywords, ...dailyMenuData } = selectedDefaultMenu;
+                            menuContent = dailyMenuData as DailyMenuData;
+                            step3Status = 'error';
+                            step3ErrorDetails = `Mọi nỗ lực tạo và phân tích menu đều thất bại. Đã sử dụng thực đơn mặc định cuối cùng "${selectedDefaultMenu.description}".`; // Translated error detail
+                            step3OutputData.parsingStatus = 'FailedWithLastResort';
+                            step3OutputData.fallbackMenuUsed = selectedDefaultMenu.description;
+                            step3Reasoning += ` | Lỗi nghiêm trọng: Đã sử dụng thực đơn mặc định cuối cùng "${selectedDefaultMenu.description}".`; // Translated reasoning
+                        } else {
+                            step3Status = 'error';
+                            step3ErrorDetails = `Mọi nỗ lực tạo và phân tích menu đều thất bại và không có thực đơn tuần mặc định nào được định nghĩa.`; // Translated error detail
+                            step3OutputData.parsingStatus = 'FailedNoFallback';
+                            step3Reasoning += ` | Lỗi nghiêm trọng: Không tìm thấy thực đơn tuần mặc định phù hợp.`; // Translated reasoning
+                        }
                     }
                 } else {
                     // Handle case where generatedMenuString is undefined (shouldn't happen if previous checks pass, but good safety)
@@ -805,9 +867,9 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
             step3ErrorDetails = error.message || String(error);
             // Log the raw output if available in the error object for debugging
             step3OutputData.errorOutput = safeStringify(error.output || error, 1000);
-            logger.error(`[${writingStepName}] Lỗi trong quá trình gọi LLM hoặc xử lý output: ${step3ErrorDetails}`, error);
+            logger.error(`[${writingStepName}] Lỗi trong quá trình gọi LLM hoặc xử lý đầu ra: ${step3ErrorDetails}`, error); // output -> đầu ra
             // Ensure reasoning reflects the error state if an LLM call error occurred
-            step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý output ban đầu: ${step3ErrorDetails}`;
+            step3Reasoning = `Lỗi khi gọi LLM hoặc xử lý đầu ra ban đầu: ${step3ErrorDetails}`; // output -> đầu ra
             menuContent = undefined; // Ensure menu is undefined on any error in this step
         } finally {
              // Define inputData and outputData for trace log separately
@@ -832,67 +894,152 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
         }
 
 
-        // +++ Step 3.5: Fallback Logic for Missing Meals (Giữ nguyên) +++
-        const fallbackStepName = "Bước 3.5: Đảm bảo Bữa ăn Bắt buộc (Fallback)";
+        // +++ Step 3.5: Check for Missing/Empty Meals (NO LONGER ADDS PLACEHOLDERS) +++
+        const checkStepName = "Bước 3.5: Kiểm tra Bữa ăn Bắt buộc (Chỉ cảnh báo)";
         startTime = Date.now();
-        let fallbackApplied = false;
-        let fallbackReasoning = "Kiểm tra và đảm bảo các bữa ăn bắt buộc (sáng, trưa, tối) tồn tại sau khi parse.";
+        let mealsChecked = false;
+        let missingMealsDetected = false;
+        let checkReasoning = "Kiểm tra xem các bữa ăn bắt buộc (sáng, trưa, tối) có bị thiếu hoặc trống sau khi parse không.";
         try {
             if (step3Status === 'success' && menuContent) {
-                const placeholderMeal: MenuItemData = {
-                    name: "Món ăn chưa được tạo (Fallback)",
-                    ingredients: ["Vui lòng thử lại hoặc kiểm tra lại quá trình tạo/parse."],
-                    preparation: "Không có hướng dẫn.",
-                };
-
+                mealsChecked = true;
                 if (input.menuType === 'daily') {
                     const dailyMenu = menuContent as DailyMenuData;
-                    if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { dailyMenu.breakfast = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa sáng bị thiếu/trống.`); }
-                    if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { dailyMenu.lunch = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa trưa bị thiếu/trống.`); }
-                    if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { dailyMenu.dinner = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa tối bị thiếu/trống.`); }
+                    if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa sáng bị thiếu hoặc trống.`); }
+                    if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa trưa bị thiếu hoặc trống.`); }
+                    if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa tối bị thiếu hoặc trống.`); }
                 } else if (input.menuType === 'weekly') {
                     const weeklyMenu = menuContent as WeeklyMenuData;
                     const days: (keyof WeeklyMenuData)[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
                     for (const day of days) {
                         if (weeklyMenu[day] && typeof weeklyMenu[day] === 'object') {
                             const dailyMenu = weeklyMenu[day] as DailyMenuData;
-                            if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { dailyMenu.breakfast = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa sáng ngày ${day} bị thiếu/trống.`); }
-                            if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { dailyMenu.lunch = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa trưa ngày ${day} bị thiếu/trống.`); }
-                            if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { dailyMenu.dinner = [placeholderMeal]; fallbackApplied = true; logger.warn(`[${fallbackStepName}] Fallback: Bữa tối ngày ${day} bị thiếu/trống.`); }
+                            if (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa sáng ngày ${day} bị thiếu hoặc trống.`); }
+                            if (!dailyMenu.lunch || dailyMenu.lunch.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa trưa ngày ${day} bị thiếu hoặc trống.`); }
+                            if (!dailyMenu.dinner || dailyMenu.dinner.length === 0) { missingMealsDetected = true; logger.warn(`[${checkStepName}] Cảnh báo: Bữa tối ngày ${day} bị thiếu hoặc trống.`); }
+                        } else {
+                             // Log if a whole day is missing, though parser should ideally create it
+                             logger.warn(`[${checkStepName}] Cảnh báo: Dữ liệu cho ngày ${day} không tồn tại hoặc không phải object.`);
                         }
                     }
                 }
-                fallbackReasoning = fallbackApplied
-                    ? "Đã kiểm tra và thêm món ăn giữ chỗ cho các bữa ăn bắt buộc (sáng, trưa, tối) bị thiếu hoặc trống trong cấu trúc menu đã phân tích."
-                    : "Kiểm tra hoàn tất: Tất cả các bữa ăn bắt buộc (sáng, trưa, tối) đều tồn tại trong cấu trúc menu đã phân tích.";
+                checkReasoning = missingMealsDetected
+                    ? "Đã kiểm tra. Phát hiện một số bữa ăn bắt buộc (sáng, trưa, tối) bị thiếu hoặc trống trong menu đã parse. Sẽ kiểm tra ở bước sau để dùng menu mặc định nếu cần."
+                    : "Kiểm tra hoàn tất: Tất cả các bữa ăn bắt buộc (sáng, trưa, tối) dường như tồn tại (có thể trống) trong cấu trúc menu đã phân tích.";
             } else {
-                fallbackReasoning = "Bỏ qua kiểm tra fallback do bước tạo/phân tích nội dung trước đó thất bại, bị bỏ qua, hoặc không tạo menuContent.";
-                logger.info(`[${fallbackStepName}] Bỏ qua do step3 status là ${step3Status} hoặc menuContent không tồn tại.`);
+                checkReasoning = "Bỏ qua kiểm tra bữa ăn do bước tạo/phân tích nội dung trước đó thất bại, bị bỏ qua, hoặc không tạo menuContent.";
+                logger.info(`[${checkStepName}] Bỏ qua do step3 status là ${step3Status} hoặc menuContent không tồn tại.`);
             }
         } catch (error: any) {
-            logger.error(`[${fallbackStepName}] Lỗi không mong muốn khi áp dụng fallback: ${error.message}`, error);
-            fallbackReasoning = `Gặp lỗi khi kiểm tra fallback: ${error.message}`;
+            logger.error(`[${checkStepName}] Lỗi không mong muốn khi kiểm tra bữa ăn: ${error.message}`, error);
+            checkReasoning = `Gặp lỗi khi kiểm tra bữa ăn: ${error.message}`;
         } finally {
-            // Define inputData and outputData for trace log separately
             const traceInputData = { menuExists: !!menuContent, step3Status: step3Status };
-            const finalReasoning = typeof fallbackReasoning === 'string' ? fallbackReasoning : "[Fallback reasoning unavailable]";
-            const traceOutputData = { reasoning: finalReasoning, fallbackApplied: fallbackApplied };
-
-            // Explicitly construct the object matching StepTrace type
+            const finalReasoning = typeof checkReasoning === 'string' ? checkReasoning : "[Check reasoning unavailable]";
+            const traceOutputData = { reasoning: finalReasoning, mealsChecked: mealsChecked, missingMealsDetected: missingMealsDetected };
             const traceEntry: StepTrace = {
-                stepName: fallbackStepName, // string
-                status: 'success', // 'success' | 'error' | 'skipped'
-                inputData: traceInputData, // any | undefined
-                outputData: traceOutputData, // object | undefined
-                // errorDetails: undefined, // No error details in this specific finally block
-                durationMs: Date.now() - startTime // number | undefined
+                stepName: checkStepName,
+                status: 'success', // This step itself doesn't fail easily
+                inputData: traceInputData,
+                outputData: traceOutputData,
+                durationMs: Date.now() - startTime
             };
-            traceLog.push(traceEntry); // Push the explicitly typed object
+            traceLog.push(traceEntry);
+        }
+
+        // +++ NEW Step 3.6: Use Default Menu if Parsed Menu is Effectively Empty +++
+        const defaultMenuStepName = "Bước 3.6: Sử dụng Menu Mặc định nếu Cần";
+        startTime = Date.now();
+        let usedDefaultMenu = false;
+        let defaultMenuReasoning = "Kiểm tra xem menu đã parse có thực sự trống không và sử dụng menu mặc định nếu cần.";
+        let defaultMenuErrorDetails: string | undefined = undefined;
+        let defaultMenuStatus: StepTrace['status'] = 'success';
+
+        try {
+            let isEffectivelyEmpty = false;
+            if (menuContent) { // Only proceed if menuContent exists
+                if (input.menuType === 'daily') {
+                    const dailyMenu = menuContent as DailyMenuData;
+                    // Check if ALL required meals are empty arrays
+                    isEffectivelyEmpty = (!dailyMenu.breakfast || dailyMenu.breakfast.length === 0) &&
+                                         (!dailyMenu.lunch || dailyMenu.lunch.length === 0) &&
+                                         (!dailyMenu.dinner || dailyMenu.dinner.length === 0);
+                } else if (input.menuType === 'weekly') {
+                    // For weekly, consider it empty if *all defined days* have empty required meals
+                    // Or if no days were defined at all by the parser
+                    const weeklyMenu = menuContent as WeeklyMenuData;
+                    const days = Object.keys(weeklyMenu) as (keyof WeeklyMenuData)[];
+                    if (days.length === 0) {
+                        isEffectivelyEmpty = true; // No days parsed
+                    } else {
+                        isEffectivelyEmpty = days.every(day => {
+                            const daily = weeklyMenu[day];
+                            return daily &&
+                                   (!daily.breakfast || daily.breakfast.length === 0) &&
+                                   (!daily.lunch || daily.lunch.length === 0) &&
+                                   (!daily.dinner || daily.dinner.length === 0);
+                        });
+                    }
+                }
+
+                if (isEffectivelyEmpty) {
+                    logger.warn(`[${defaultMenuStepName}] Menu đã parse thành công nhưng không chứa món ăn nào cho các bữa bắt buộc. Sử dụng menu mặc định.`);
+                    // Select and assign default menu (currently only handles daily)
+                    if (input.menuType === 'daily') {
+                        const selectedDefaultMenu = selectBestDefaultMenu(input.preferences);
+                        const { description, keywords, ...dailyMenuData } = selectedDefaultMenu;
+                        menuContent = dailyMenuData as DailyMenuData; // OVERWRITE menuContent
+                        usedDefaultMenu = true;
+                        defaultMenuReasoning = `Menu được parse từ LLM không có món ăn nào. Đã chọn và sử dụng menu mặc định "${selectedDefaultMenu.description}" dựa trên sở thích.`;
+                    } else { // Handle weekly menu fallback by constructing from daily default
+                        logger.warn(`[${defaultMenuStepName}] Parsed weekly menu is effectively empty. Constructing fallback weekly menu from default daily menu.`);
+                        const selectedDefaultMenu = selectBestDefaultMenu(input.preferences);
+                        const { description, keywords, ...dailyMenuData } = selectedDefaultMenu;
+                        const fallbackWeeklyMenu: WeeklyMenuData = {
+                            Monday: dailyMenuData as DailyMenuData,
+                            Tuesday: dailyMenuData as DailyMenuData,
+                            Wednesday: dailyMenuData as DailyMenuData,
+                            Thursday: dailyMenuData as DailyMenuData,
+                            Friday: dailyMenuData as DailyMenuData,
+                            Saturday: dailyMenuData as DailyMenuData,
+                            Sunday: dailyMenuData as DailyMenuData,
+                        };
+                        menuContent = fallbackWeeklyMenu; // OVERWRITE menuContent
+                        usedDefaultMenu = true;
+                        defaultMenuReasoning = `Menu tuần được parse từ LLM không có món ăn nào. Đã xây dựng thực đơn tuần mặc định từ thực đơn ngày "${selectedDefaultMenu.description}" dựa trên sở thích.`;
+                        logger.info(`[${defaultMenuStepName}] Successfully constructed fallback weekly menu from default: "${selectedDefaultMenu.description}"`);
+                    }
+                } else {
+                    defaultMenuReasoning = "Menu đã parse có chứa ít nhất một món ăn trong các bữa bắt buộc. Không cần sử dụng menu mặc định.";
+                }
+            } else {
+                 defaultMenuReasoning = "Bỏ qua bước kiểm tra menu mặc định vì menuContent không tồn tại (do lỗi ở các bước trước).";
+                 defaultMenuStatus = 'skipped';
+            }
+        } catch (error: any) {
+            defaultMenuStatus = 'error';
+            defaultMenuErrorDetails = error.message || String(error);
+            logger.error(`[${defaultMenuStepName}] Lỗi khi chọn hoặc gán menu mặc định: ${defaultMenuErrorDetails}`, error);
+            defaultMenuReasoning = `Gặp lỗi trong quá trình kiểm tra hoặc sử dụng menu mặc định: ${defaultMenuErrorDetails}`;
+            // menuContent might be in an inconsistent state, but the final fallback should handle it
+        } finally {
+            const traceInputData = { menuContentExists: !!menuContent, previousStepMissingMeals: missingMealsDetected };
+            const finalReasoning = typeof defaultMenuReasoning === 'string' ? defaultMenuReasoning : "[Default menu reasoning unavailable]";
+            const traceOutputData = { reasoning: finalReasoning, usedDefaultMenu: usedDefaultMenu };
+            const traceEntry: StepTrace = {
+                stepName: defaultMenuStepName,
+                status: defaultMenuStatus,
+                inputData: traceInputData,
+                outputData: traceOutputData,
+                errorDetails: defaultMenuErrorDetails,
+                durationMs: Date.now() - startTime
+            };
+            traceLog.push(traceEntry);
         }
 
 
-        // --- Step 4: Feedback Request Agent (Giữ nguyên) ---
-        const feedbackStepName = "Bước 4: Tạo Câu hỏi Phản hồi";
+        // --- Step 4: Feedback Request Agent ---
+        const feedbackStepName = "Bước 4: Tạo Câu hỏi Phản hồi"; // Renumbered from 4 to 4
         startTime = Date.now();
         let feedbackInput = { menuType: input.menuType };
         let step4Reasoning = `(Reasoning dự phòng) Không thể tạo câu hỏi phản hồi.`;
@@ -918,7 +1065,7 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
                 logger.warn(`[${feedbackStepName}] LLM trả về question là null/rỗng. Sử dụng fallback.`);
                 feedbackRequest = fallbackFeedbackRequest;
                 step4OutputData = { request: feedbackRequest, note: "Used fallback question." };
-                step4Reasoning += ` (LLM không tạo được câu hỏi, đã dùng fallback).`;
+                step4Reasoning += ` (LLM không tạo được câu hỏi, đã dùng phương án dự phòng).`; // fallback -> phương án dự phòng
             }
         } catch (error: any) {
             // Reverted AbortError handling
@@ -996,9 +1143,9 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
 
             // Define placeholder meal and default menu structure within the scope
              const defaultPlaceholderMeal: MenuItemData = {
-                name: "Món ăn mặc định (Lỗi)",
-                ingredients: ["Đã xảy ra lỗi trong quá trình tạo thực đơn."],
-                preparation: "Vui lòng thử lại hoặc liên hệ hỗ trợ.",
+                name: "Món ăn mặc định (Lỗi)", // Already Vietnamese
+                ingredients: ["Đã xảy ra lỗi trong quá trình tạo thực đơn."], // Already Vietnamese
+                preparation: "Vui lòng thử lại hoặc liên hệ hỗ trợ.", // Already Vietnamese
                 // Ensure all required fields from MenuItemSchema have a value or are explicitly undefined if optional
                 estimatedCost: undefined,
                 calories: undefined,
@@ -1021,11 +1168,11 @@ const generateMenuFromPreferencesFlow = ai.defineFlow<
 
             // Add/Update trace log to reflect this critical fallback
             const fallbackTraceEntry: StepTrace = {
-                stepName: "Bước 6: Fallback Cuối cùng (Critical Failure)",
+                stepName: "Bước 6: Fallback Cuối cùng (Lỗi Nghiêm trọng)", // Translated parenthetical
                 status: 'error', // Indicate an overall process failure led to this
                 inputData: { previousMenuState: 'undefined or null' }, // Removed wasAborted
-                outputData: { reasoning: "Không có nội dung thực đơn nào được tạo hoặc phân tích thành công trong toàn bộ quy trình. Đã tạo thực đơn mặc định báo lỗi.", generatedMenuType: 'Default Daily Error Menu' },
-                errorDetails: "Toàn bộ quá trình tạo thực đơn chính và các fallback trước đó đều thất bại trong việc tạo ra một đối tượng menu hợp lệ.",
+                outputData: { reasoning: "Không có nội dung thực đơn nào được tạo hoặc phân tích thành công trong toàn bộ quy trình. Đã tạo thực đơn mặc định báo lỗi.", generatedMenuType: 'Default Daily Error Menu' }, // Already Vietnamese
+                errorDetails: "Toàn bộ quá trình tạo thực đơn chính và các phương án dự phòng trước đó đều thất bại trong việc tạo ra một đối tượng menu hợp lệ.", // fallback -> phương án dự phòng
                 durationMs: 0 // Indicate this is an immediate check/fix step
             };
             // Ensure trace exists before pushing

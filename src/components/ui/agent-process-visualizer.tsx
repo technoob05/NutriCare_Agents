@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button'; // Import Button
 import {
     Accordion,
     AccordionContent,
@@ -12,17 +13,18 @@ import { Progress } from '@/components/ui/progress';
 import {
     CheckCircle2, XCircle, AlertCircle, SkipForward, Clock, LogIn, LogOut,
     Sparkles, BrainCircuit, SearchCheck, FileText, Paintbrush, BookOpenText,
-    Loader2, Info, Link as LinkIcon, CircleDot, ListChecks, // Added CircleDot, ListChecks
+    Loader2, Info, Link as LinkIcon, CircleDot, ListChecks, ChevronDown, ChevronUp // Import toggle icons
 } from 'lucide-react';
 // --- ĐÃ SỬA IMPORT ---
-// Import StepTrace từ flow
+// Import StepTrace từ flow and re-export it as AgentStep
 import { type StepTrace } from '@/ai/flows/generate-menu-from-preferences';
+export type { StepTrace as AgentStep }; // Re-exporting the type
 // Import GroundingMetadata và GroundingChunk từ service (Đảm bảo GroundingChunk được export từ google-search.ts)
 import { type GroundingMetadata, type GroundingChunk } from '@/services/google-search';
 import { cn } from '@/lib/utils';
 
 // --- Constants ---
-const PLANNING_STEP_NAME = 'Bước 2: Lập Kế hoạch & Suy luận (Reasoning)';
+const PLANNING_STEP_NAME = 'Bước 2: Lập Kế hoạch & Suy luận'; // REMOVED (Reasoning) to match backend
 const RAG_STEP_NAME = 'Bước 1: Tìm kiếm Thông tin (RAG)';
 const CONTENT_STEP_PREFIX = 'Bước 3: Tạo Nội dung Thực đơn'; // Prefix for daily/weekly
 const FEEDBACK_STEP_NAME = 'Bước 4: Tạo Câu hỏi Phản hồi';
@@ -77,7 +79,7 @@ const StreamingText: React.FC<StreamingTextProps> = ({ text, speed = 60, classNa
         };
     }, [text, speed]);
 
-    return <p key={text} className={cn('whitespace-pre-line font-mono', className)}>{displayedText}</p>;
+    return <p key={text} className={cn('whitespace-pre-line font-mono text-xs break-words', className)}>{displayedText}</p>;
 };
 // --- End Streaming Text Component ---
 
@@ -100,18 +102,20 @@ const SimpleObjectDisplay: React.FC<{ data: Record<string, any>, maxDepth?: numb
         return <span className="text-gray-500 dark:text-gray-400 text-[10px] italic">{`{Object (${Object.keys(data).length} keys)}`}</span>;
     }
     return (
-        <div className="space-y-0.5 pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
+        <div className="space-y-0.5 pl-2 border-l border-gray-200 dark:border-gray-700 ml-1 w-full">
             {Object.entries(data).map(([key, value]) => (
-                <div key={key} className="flex text-[11px]">
+                <div key={key} className="flex text-[10px] flex-wrap">
                     {/* Responsive key width */}
-                    <span className="font-medium text-gray-500 dark:text-gray-400 w-16 sm:w-24 flex-shrink-0 truncate pr-1">{key}:</span>
-                    {typeof value === 'object' && value !== null && !Array.isArray(value) ? (
-                        <SimpleObjectDisplay data={value} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
-                    ) : typeof value === 'object' && value !== null && Array.isArray(value) ? (
-                         <SimpleListDisplay data={value} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
-                    ) : (
-                        <span className="text-gray-700 dark:text-gray-300 break-words">{formatTraceValue(value)}</span>
-                    )}
+                    <span className="font-medium text-gray-500 dark:text-gray-400 w-14 xs:w-16 sm:w-24 flex-shrink-0 truncate pr-1">{key}:</span>
+                    <div className="flex-1 min-w-0">
+                        {typeof value === 'object' && value !== null && !Array.isArray(value) ? (
+                            <SimpleObjectDisplay data={value} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
+                        ) : typeof value === 'object' && value !== null && Array.isArray(value) ? (
+                            <SimpleListDisplay data={value} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
+                        ) : (
+                            <span className="text-gray-700 dark:text-gray-300 break-words">{formatTraceValue(value)}</span>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>
@@ -120,21 +124,23 @@ const SimpleObjectDisplay: React.FC<{ data: Record<string, any>, maxDepth?: numb
 
 // Simple List Renderer for Arrays
 const SimpleListDisplay: React.FC<{ data: any[], maxDepth?: number, currentDepth?: number }> = ({ data, maxDepth = 1, currentDepth = 0 }) => {
-     if (currentDepth >= maxDepth) {
+    if (currentDepth >= maxDepth) {
         return <span className="text-gray-500 dark:text-gray-400 text-[10px] italic">{`[Array (${data.length} items)]`}</span>;
     }
     return (
-        <ul className="list-none space-y-0.5 pl-2 border-l border-gray-200 dark:border-gray-700 ml-1">
+        <ul className="list-none space-y-0.5 pl-2 border-l border-gray-200 dark:border-gray-700 ml-1 w-full">
             {data.map((item, index) => (
-                <li key={index} className="text-[11px] flex items-start">
-                    <span className="text-gray-400 dark:text-gray-500 mr-1">-</span>
-                     {typeof item === 'object' && item !== null && !Array.isArray(item) ? (
-                        <SimpleObjectDisplay data={item} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
-                    ) : typeof item === 'object' && item !== null && Array.isArray(item) ? (
-                         <SimpleListDisplay data={item} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
-                     ) : (
-                        <span className="text-gray-700 dark:text-gray-300 break-words">{formatTraceValue(item)}</span>
-                    )}
+                <li key={index} className="text-[10px] flex items-start flex-wrap">
+                    <span className="text-gray-400 dark:text-gray-500 mr-1 flex-shrink-0">-</span>
+                    <div className="flex-1 min-w-0">
+                        {typeof item === 'object' && item !== null && !Array.isArray(item) ? (
+                            <SimpleObjectDisplay data={item} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
+                        ) : typeof item === 'object' && item !== null && Array.isArray(item) ? (
+                            <SimpleListDisplay data={item} maxDepth={maxDepth} currentDepth={currentDepth + 1} />
+                        ) : (
+                            <span className="text-gray-700 dark:text-gray-300 break-words">{formatTraceValue(item)}</span>
+                        )}
+                    </div>
                 </li>
             ))}
         </ul>
@@ -150,27 +156,26 @@ const DataDisplay: React.FC<{ data: any, title: string, icon: React.ElementType 
         // If it looks like JSON, try parsing for better display, otherwise show as string
         try {
             const parsed = JSON.parse(data);
-             if (typeof parsed === 'object' && parsed !== null) {
-                 content = <SimpleObjectDisplay data={parsed} />;
-             } else {
-                 content = <pre className="whitespace-pre-wrap text-[11px] font-mono">{data}</pre>;
-             }
+            if (typeof parsed === 'object' && parsed !== null) {
+                content = <SimpleObjectDisplay data={parsed} />;
+            } else {
+                content = <pre className="whitespace-pre-wrap text-[10px] font-mono break-words">{data}</pre>;
+            }
         } catch (e) {
-             content = <pre className="whitespace-pre-wrap text-[11px] font-mono">{data}</pre>;
+            content = <pre className="whitespace-pre-wrap text-[10px] font-mono break-words">{data}</pre>;
         }
     } else if (Array.isArray(data)) {
         content = <SimpleListDisplay data={data} />;
     } else if (typeof data === 'object') {
         content = <SimpleObjectDisplay data={data} />;
     } else {
-        content = <pre className="whitespace-pre-wrap text-[11px] font-mono">{String(data)}</pre>;
+        content = <pre className="whitespace-pre-wrap text-[10px] font-mono break-words">{String(data)}</pre>;
     }
 
     return (
         <div>
-            <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1"><Icon size={14} /> {title}</span>
-            {/* Added overflow-x-auto for horizontal scrolling if needed */}
-            <div className="bg-gray-100 dark:bg-gray-700/80 p-2 rounded text-gray-800 dark:text-gray-200 shadow-inner max-h-48 overflow-y-auto overflow-x-auto">
+            <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1 text-xs"><Icon size={14} /> {title}</span>
+            <div className="bg-gray-100 dark:bg-gray-700/80 p-1.5 xs:p-2 rounded text-gray-800 dark:text-gray-200 shadow-inner max-h-48 overflow-y-auto break-words w-full">
                 {content}
             </div>
         </div>
@@ -226,6 +231,7 @@ export function AgentProcessVisualizer({
     trace,
     isProcessing,
 }: AgentProcessVisualizerProps) {
+    const [isVisible, setIsVisible] = useState(false); // State for visibility toggle (Default hidden)
     const revealedSteps = trace || [];
     const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
     const [progress, setProgress] = useState(0);
@@ -261,7 +267,7 @@ export function AgentProcessVisualizer({
         // --- Parse Plan (only once) ---
         if (!planParsedRef.current) {
             const planningStep = revealedSteps.find(step => step.stepName === PLANNING_STEP_NAME);
-            if (planningStep?.status === 'success' && planningStep.outputData?.plan ) {
+            if (planningStep?.status === 'success' && planningStep.outputData?.plan) {
                 const planString = planningStep.outputData.plan as string;
                 // Simple parsing: split by newline, trim, filter empty lines
                 const steps = planString?.
@@ -294,7 +300,7 @@ export function AgentProcessVisualizer({
 
                     // Try direct match first (if plan uses exact names)
                     if (newStatus[traceStep.stepName]) {
-                         matchedPlanStep = traceStep.stepName;
+                        matchedPlanStep = traceStep.stepName;
                     } else {
                         // Keyword-based matching
                         if (traceNameLower.includes('tìm kiếm') || traceNameLower.includes('rag')) {
@@ -308,8 +314,8 @@ export function AgentProcessVisualizer({
                         } else if (traceNameLower.includes('định dạng kết quả') || traceNameLower.includes('format')) {
                             matchedPlanStep = plannedSteps.find(p => p.toLowerCase().includes('định dạng') || p.toLowerCase().includes('format'));
                         } else if (traceNameLower.includes('fallback') || traceNameLower.includes('đảm bảo bữa ăn')) {
-                             matchedPlanStep = plannedSteps.find(p => p.toLowerCase().includes('fallback') || p.toLowerCase().includes('đảm bảo'));
-                         }
+                            matchedPlanStep = plannedSteps.find(p => p.toLowerCase().includes('fallback') || p.toLowerCase().includes('đảm bảo'));
+                        }
                         // Add more matching rules if needed
                     }
 
@@ -342,13 +348,13 @@ export function AgentProcessVisualizer({
     }, [revealedSteps, isProcessing, plannedSteps]); // Add plannedSteps to dependency array
 
     // --- Reset plan parsing state if trace is cleared ---
-     useEffect(() => {
-         if (revealedSteps.length === 0) {
-             planParsedRef.current = false;
-             setPlannedSteps([]);
-             setPlannedStepStatus({});
-         }
-     }, [revealedSteps]);
+    useEffect(() => {
+        if (revealedSteps.length === 0) {
+            planParsedRef.current = false;
+            setPlannedSteps([]);
+            setPlannedStepStatus({});
+        }
+    }, [revealedSteps]);
 
     // Memoize các giá trị tính toán
     const { allStepsCompleted, hasError } = useMemo(() => {
@@ -361,62 +367,95 @@ export function AgentProcessVisualizer({
     // --- Helper to get planned step icon ---
     const getPlannedStepIcon = (status: PlannedStepStatus) => {
         switch (status) {
-            case 'running': return <Loader2 size={14} className="animate-spin text-blue-500" />;
-            case 'completed': return <CheckCircle2 size={14} className="text-green-500" />;
-            case 'error': return <AlertCircle size={14} className="text-red-500" />;
-            case 'skipped': return <SkipForward size={14} className="text-yellow-500" />;
+            case 'running': return <Loader2 size={12} className="animate-spin text-blue-500" />;
+            case 'completed': return <CheckCircle2 size={12} className="text-green-500" />;
+            case 'error': return <AlertCircle size={12} className="text-red-500" />;
+            case 'skipped': return <SkipForward size={12} className="text-yellow-500" />;
             case 'pending':
-            default: return <CircleDot size={14} className="text-gray-400" />; // Pending icon
+            default: return <CircleDot size={12} className="text-gray-400" />; // Pending icon
         }
     };
 
     // --- Render Logic ---
     if (revealedSteps.length === 0 && !isProcessing) {
-        return <div className="text-sm text-muted-foreground p-4 text-center italic">AI chưa bắt đầu xử lý.</div>;
+        return <div className="text-sm text-muted-foreground p-2 text-center italic">AI chưa bắt đầu xử lý.</div>;
     }
     if (revealedSteps.length === 0 && isProcessing) {
-        return <div className="text-sm text-blue-600 dark:text-blue-400 p-4 flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Đang khởi tạo quá trình AI...</div>;
+        return <div className="text-sm text-blue-600 dark:text-blue-400 p-2 flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Đang khởi tạo quá trình AI...</div>;
     }
 
     return (
-        <div className="p-3 md:p-4 border border-border/80 rounded-lg bg-gradient-to-b from-gray-50/50 to-white dark:from-gray-800/60 dark:to-gray-900/70 my-2 shadow-sm w-full backdrop-blur-sm">
-            {/* Header với Progress Bar */}
-            <div className="mb-3 px-1">
-                <div className="flex justify-between items-center mb-1">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        // Changed overflow-x-auto to overflow-x-hidden on the main container
+        <div className="border border-border/80 rounded-lg bg-gradient-to-b from-gray-50/50 to-white dark:from-gray-800/60 dark:to-gray-900/70 my-2 shadow-sm w-full backdrop-blur-sm max-w-full overflow-hidden">
+            {/* Header with Toggle Button */}
+            <div className="flex justify-between items-center p-2 xs:p-3 border-b border-border/50">
+                <div className="flex items-center gap-2">
+                    <h4 className="text-[10px] xs:text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         AI Processing Trace
                     </h4>
-                    {isProcessing && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
+                    {isProcessing && <Loader2 className="h-3 w-3 xs:h-4 xs:w-4 animate-spin text-blue-500" />}
                 </div>
-                <Progress value={progress} className="h-1.5" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 xs:h-7 xs:w-7 text-muted-foreground hover:bg-muted/50"
+                    onClick={() => setIsVisible(!isVisible)}
+                    aria-label={isVisible ? "Hide Processing Steps" : "Show Processing Steps"}
+                >
+                    {isVisible ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
             </div>
 
-            {/* --- Planned Steps Visualization --- */}
+            {/* Collapsible Content Area */}
+            <AnimatePresence initial={false}>
+                {isVisible && (
+                    <motion.div
+                        key="content"
+                        initial="collapsed"
+                        animate="open"
+                        exit="collapsed"
+                        variants={{
+                            open: { opacity: 1, height: "auto" },
+                            collapsed: { opacity: 0, height: 0 }
+                        }}
+                        transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                        className="overflow-hidden" // Ensure content doesn't overflow during animation
+                    >
+                        <div className="p-2 xs:p-3 md:p-4"> {/* Add padding back to the content area */}
+                            {/* Progress Bar */}
+                            <div className="mb-2 xs:mb-3 px-0.5 xs:px-1">
+                                <Progress value={progress} className="h-1 xs:h-1.5" />
+                            </div>
+
+                            {/* --- Planned Steps Visualization --- */}
             {plannedSteps.length > 0 && (
-                <div className="mb-4 px-1 border border-dashed border-border/50 rounded-md p-2.5 bg-gray-50/30 dark:bg-gray-800/30">
-                    <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
-                        <ListChecks size={14} /> Planned Steps
+                <div className="mb-3 px-0.5 xs:px-1 border border-dashed border-border/50 rounded-md p-1.5 xs:p-2.5 bg-gray-50/30 dark:bg-gray-800/30 max-w-full">
+                    <h5 className="text-[10px] xs:text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                        <ListChecks size={12} className="hidden xs:inline" />
+                        <ListChecks size={10} className="xs:hidden" /> Planned Steps
                     </h5>
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1 w-full">
                         {plannedSteps.map((stepDesc, idx) => (
                             <motion.li
                                 key={idx}
                                 className={cn(
-                                    "flex items-center gap-2 text-xs transition-colors duration-200",
+                                    // Removed wrapping classes from li (flex container)
+                                    "flex items-center gap-1 xs:gap-2 text-[9px] xs:text-[10px] transition-colors duration-200",
                                     plannedStepStatus[stepDesc] === 'completed' ? 'text-green-600 dark:text-green-400' :
-                                    plannedStepStatus[stepDesc] === 'running' ? 'text-blue-600 dark:text-blue-400 font-medium' :
-                                    plannedStepStatus[stepDesc] === 'error' ? 'text-red-600 dark:text-red-400' :
-                                    plannedStepStatus[stepDesc] === 'skipped' ? 'text-yellow-600 dark:text-yellow-400 line-through' :
-                                    'text-gray-500 dark:text-gray-400' // Pending
+                                        plannedStepStatus[stepDesc] === 'running' ? 'text-blue-600 dark:text-blue-400 font-medium' :
+                                            plannedStepStatus[stepDesc] === 'error' ? 'text-red-600 dark:text-red-400' :
+                                                plannedStepStatus[stepDesc] === 'skipped' ? 'text-yellow-600 dark:text-yellow-400 line-through' :
+                                                    'text-gray-500 dark:text-gray-400' // Pending
                                 )}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.3, delay: idx * 0.05 }}
                             >
-                                <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+                                <div className="flex-shrink-0 w-3 h-3 xs:w-4 xs:h-4 flex items-center justify-center">
                                     {getPlannedStepIcon(plannedStepStatus[stepDesc] || 'pending')}
                                 </div>
-                                <span className="flex-grow">{stepDesc}</span>
+                                {/* Added wrapping classes directly to the text span */}
+                                <span className="flex-grow min-w-0 whitespace-normal break-all">{stepDesc}</span>
                             </motion.li>
                         ))}
                     </ul>
@@ -428,7 +467,7 @@ export function AgentProcessVisualizer({
                 {allStepsCompleted && (
                     <motion.div
                         className={cn(
-                            "text-sm font-medium mb-3 px-1 flex items-center gap-1.5 rounded",
+                            "text-[10px] xs:text-xs font-medium mb-2 xs:mb-3 px-0.5 xs:px-1 flex items-center gap-1 xs:gap-1.5 rounded",
                             hasError ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"
                         )}
                         initial={{ opacity: 0, y: -10 }}
@@ -436,7 +475,7 @@ export function AgentProcessVisualizer({
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
                     >
-                        {hasError ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {hasError ? <AlertCircle className="h-3 w-3 xs:h-4 xs:w-4" /> : <CheckCircle2 className="h-3 w-3 xs:h-4 xs:w-4" />}
                         {hasError ? "Quá trình xử lý hoàn tất với lỗi." : "Quá trình xử lý hoàn tất!"}
                     </motion.div>
                 )}
@@ -445,7 +484,7 @@ export function AgentProcessVisualizer({
             {/* Accordion cho các bước chi tiết */}
             <Accordion
                 type="multiple"
-                className="w-full space-y-1"
+                className="w-full space-y-1 max-w-full"
                 value={openAccordionItems}
                 onValueChange={setOpenAccordionItems}
             >
@@ -476,22 +515,24 @@ export function AgentProcessVisualizer({
                         return (
                             <motion.div
                                 key={itemValue}
-                                layout
+                                // layout // Removed layout prop to potentially improve animation performance
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
                                 transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
                                 style={{ overflow: 'hidden' }}
+                                className="max-w-full"
                             >
-                                <AccordionItem value={itemValue} className="border border-border/60 rounded-md bg-white dark:bg-gray-800/70 shadow-xs overflow-hidden">
+                                {/* Changed overflow-x-auto to overflow-x-hidden */}
+                                <AccordionItem value={itemValue} className="border border-border/60 rounded-md bg-white dark:bg-gray-800/70 shadow-xs overflow-x-hidden max-w-full">
                                     <AccordionTrigger
                                         className={cn(
-                                            "flex items-center gap-2 text-sm font-medium px-3 py-2.5 transition-colors duration-150 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 w-full text-left",
+                                            "flex items-center gap-1 xs:gap-2 text-xs font-medium px-2 py-1.5 xs:px-3 xs:py-2.5 transition-colors duration-150 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 w-full text-left",
                                             isStepError ? 'text-red-600 dark:text-red-400' :
-                                            isStepSkipped ? 'text-yellow-600 dark:text-yellow-400' :
-                                            isStepSuccess ? 'text-green-600 dark:text-green-400' :
-                                            isCurrentStep ? 'text-blue-600 dark:text-blue-400' :
-                                            'text-gray-700 dark:text-gray-300'
+                                                isStepSkipped ? 'text-yellow-600 dark:text-yellow-400' :
+                                                    isStepSuccess ? 'text-green-600 dark:text-green-400' :
+                                                        isCurrentStep ? 'text-blue-600 dark:text-blue-400' :
+                                                            'text-gray-700 dark:text-gray-300'
                                         )}
                                     >
                                         {/* Icon Trạng thái Động */}
@@ -500,28 +541,29 @@ export function AgentProcessVisualizer({
                                             initial={{ scale: 0.5, opacity: 0 }}
                                             animate={{ scale: 1, opacity: 1 }}
                                             transition={{ duration: 0.25 }}
-                                            className="flex-shrink-0 w-4 h-4 flex items-center justify-center"
+                                            className="flex-shrink-0 w-3 h-3 xs:w-4 xs:h-4 flex items-center justify-center"
                                         >
                                             {isCurrentStep ? (
-                                                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                                                <Loader2 className="h-3 w-3 xs:h-4 xs:w-4 animate-spin text-blue-500" />
                                             ) : isStepComplete ? (
-                                                getStatusIcon(step.status, 16)
+                                                getStatusIcon(step.status, 14)
                                             ) : (
-                                                <Sparkles size={16} className="text-gray-400" />
+                                                <Sparkles size={14} className="text-gray-400" />
                                             )}
                                         </motion.div>
                                         {/* Icon Bước */}
-                                        <IconComponent size={16} className="text-muted-foreground flex-shrink-0 mr-1.5" />
+                                        <IconComponent size={14} className="text-muted-foreground flex-shrink-0 mr-1 hidden xs:block" />
                                         {/* Tên Bước */}
-                                        <span className="flex-grow truncate mr-2">{step.stepName}</span>
+                                        <span className="flex-grow truncate mr-1 text-[11px] xs:text-xs">{step.stepName}</span>
                                         {/* Thời gian */}
                                         {step.durationMs !== undefined && isStepComplete && (
-                                            <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto flex-shrink-0 pr-1">
-                                                <Clock size={12} /> {step.durationMs}ms
+                                            <span className="text-[9px] xs:text-[10px] text-muted-foreground flex items-center gap-0.5 ml-auto flex-shrink-0 pr-1">
+                                                <Clock size={10} className="hidden xs:inline" />
+                                                <Clock size={8} className="xs:hidden" /> {step.durationMs}ms
                                             </span>
                                         )}
                                     </AccordionTrigger>
-                                    <AccordionContent className="px-3 pt-1 pb-3 text-xs space-y-3 bg-gray-50/30 dark:bg-gray-800/40 border-t border-border/50">
+                                    <AccordionContent className="px-2 xs:px-3 pt-1 pb-2 xs:pb-3 text-[10px] space-y-2 xs:space-y-3 bg-gray-50/30 dark:bg-gray-800/40 border-t border-border/50 max-w-full overflow-x-hidden">
                                         {/* Input Data - Using DataDisplay */}
                                         {step.inputData !== undefined && (
                                             <DataDisplay data={step.inputData} title="Input Data" icon={LogIn} />
@@ -530,60 +572,68 @@ export function AgentProcessVisualizer({
                                         {/* Reasoning (cho bước Planning) */}
                                         {isPlanningStep && outputData?.reasoning && (
                                             <div>
-                                                <span className="font-medium text-purple-700 dark:text-purple-400 flex items-center gap-1.5 mb-1"><BookOpenText size={14} /> AI Reasoning</span>
-                                                <div className="bg-purple-50 dark:bg-purple-900/30 p-2.5 rounded border border-purple-200 dark:border-purple-800 shadow-sm">
-                                                    <StreamingText text={String(outputData.reasoning)} speed={70} className="text-purple-800 dark:text-purple-200 text-[11.5px] leading-relaxed" />
+                                                <span className="font-medium text-purple-700 dark:text-purple-400 flex items-center gap-1 mb-1 text-[11px]"><BookOpenText size={12} /> AI Reasoning</span>
+                                                <div className="bg-purple-50 dark:bg-purple-900/30 p-1.5 xs:p-2.5 rounded border border-purple-200 dark:border-purple-800 shadow-sm">
+                                                    <StreamingText text={String(outputData.reasoning)} speed={70} className="text-purple-800 dark:text-purple-200 text-[10px] xs:text-[11px] leading-relaxed" />
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* Output Data (Chung) - Using DataDisplay */}
                                         {outputData !== undefined && !(isPlanningStep && !outputData.plan && outputData.reasoning) && !isRagStep && (
-                                             <DataDisplay
+                                            <DataDisplay
                                                 data={isPlanningStep ? { plan: outputData.plan, ...(outputData.errorOutput ? { errorOutput: outputData.errorOutput } : {}) } : outputData}
                                                 title="Output Data"
                                                 icon={LogOut}
                                             />
                                         )}
 
+                                        {/* Generic Reasoning Display (if not Planning/RAG and exists) */}
+                                        {outputData?.reasoning && !isPlanningStep && !isRagStep && (
+                                            <div className="pt-1.5 mt-1.5 border-t border-gray-200 dark:border-gray-700/50">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1 text-[11px]"><BookOpenText size={12} /> Reasoning</span>
+                                                <p className="text-[10px] text-gray-700 dark:text-gray-300 break-words whitespace-pre-line">{String(outputData.reasoning)}</p>
+                                            </div>
+                                        )}
+
                                         {/* Reasoning (Specific for RAG Step, if not Planning) */}
                                         {isRagStep && outputData?.reasoning && (
-                                             <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700/50">
-                                                 <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1"><BookOpenText size={14} /> Reasoning</span>
-                                                 <p className="text-[11px] text-gray-700 dark:text-gray-300">{outputData.reasoning}</p>
-                                             </div>
-                                         )}
+                                            <div className="pt-1.5 mt-1.5 border-t border-gray-200 dark:border-gray-700/50">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1 text-[11px]"><BookOpenText size={12} /> Reasoning</span>
+                                                <p className="text-[10px] text-gray-700 dark:text-gray-300 break-words">{outputData.reasoning}</p>
+                                            </div>
+                                        )}
 
                                         {/* Specific Output for Planning Step (Plan) */}
                                         {isPlanningStep && outputData?.plan && (
-                                            <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700/50">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1"><FileText size={14} /> Generated Plan</span>
-                                                <p className="whitespace-pre-wrap bg-gray-100 dark:bg-gray-700/80 p-2 rounded text-gray-800 dark:text-gray-200 text-[11px] font-mono shadow-inner">{outputData.plan}</p>
+                                            <div className="pt-1.5 mt-1.5 border-t border-gray-200 dark:border-gray-700/50">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1 text-[11px]"><FileText size={12} /> Generated Plan</span>
+                                                <p className="whitespace-pre-wrap bg-gray-100 dark:bg-gray-700/80 p-1.5 xs:p-2 rounded text-gray-800 dark:text-gray-200 text-[10px] font-mono shadow-inner break-words">{outputData.plan}</p>
                                             </div>
                                         )}
 
                                         {/* *** Hiển thị Grounding/Citations cho bước RAG *** */}
                                         {isRagStep && (outputData?.contentSummary || groundingMeta) && (
-                                            <div className="space-y-3 pt-2 border-t border-dashed border-blue-200 dark:border-blue-800/50 mt-2">
+                                            <div className="space-y-2 xs:space-y-3 pt-1.5 border-t border-dashed border-blue-200 dark:border-blue-800/50 mt-1.5">
                                                 {/* Optional: Display Content Summary from RAG */}
                                                 {outputData?.contentSummary && (
-                                                     <div>
-                                                        <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1">
-                                                            <FileText size={14} /> Tóm tắt nội dung tìm kiếm
+                                                    <div>
+                                                        <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1 text-[11px]">
+                                                            <FileText size={12} /> Tóm tắt nội dung tìm kiếm
                                                         </span>
-                                                        <p className="text-[11px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/80 p-2 rounded shadow-inner max-h-24 overflow-auto">{outputData.contentSummary}</p>
+                                                        <p className="text-[10px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/80 p-1.5 xs:p-2 rounded shadow-inner max-h-24 overflow-auto break-words">{outputData.contentSummary}</p>
                                                     </div>
                                                 )}
 
                                                 {/* 1. Search Suggestion Chip - Added Optional Chaining on groundingMeta */}
                                                 {groundingMeta?.searchEntryPoint?.renderedContent && (
-                                                    <div className="pt-2">
-                                                        <span className="font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1.5 mb-1.5">
-                                                            <SearchCheck size={14} /> Gợi ý tìm kiếm
+                                                    <div className="pt-1.5">
+                                                        <span className="font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1 mb-1 text-[11px]">
+                                                            <SearchCheck size={12} /> Gợi ý tìm kiếm
                                                         </span>
-                                                        {/* Apply overflow directly to the element rendering HTML */}
+                                                        {/* Changed overflow-x-auto to hidden and added wrapping classes */}
                                                         <div
-                                                            className="google-search-suggestion overflow-x-auto"
+                                                            className="google-search-suggestion overflow-x-hidden break-words whitespace-normal text-[10px]"
                                                             dangerouslySetInnerHTML={{ __html: groundingMeta.searchEntryPoint.renderedContent }}
                                                         />
                                                     </div>
@@ -592,20 +642,19 @@ export function AgentProcessVisualizer({
                                                 {/* 2. Grounding Chunks (Links) - Added Optional Chaining on groundingMeta */}
                                                 {groundingMeta?.groundingChunks && groundingMeta?.groundingChunks.length > 0 && (
                                                     <div>
-                                                        <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1.5 mb-1.5">
-                                                            <LinkIcon size={14} /> Nguồn tham khảo
+                                                        <span className="font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1 text-[11px]">
+                                                            <LinkIcon size={12} /> Nguồn tham khảo
                                                         </span>
-                                                        <ul className="list-none space-y-1.5 pl-1"> {/* Increased spacing */}
+                                                        <ul className="list-none space-y-1 pl-1"> {/* Increased spacing */}
                                                             {/* --- Use Optional Chaining on map too --- */}
                                                             {groundingMeta?.groundingChunks?.map((chunk: GroundingChunk, chunkIndex: number) => (
-                                                                <li key={chunkIndex} className="flex items-start gap-1.5 group"> {/* Use items-start for long titles */}
-                                                                    <LinkIcon size={12} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                                                                <li key={chunkIndex} className="flex items-start gap-1 group"> {/* Use items-start for long titles */}
+                                                                    <LinkIcon size={10} className="text-blue-400 flex-shrink-0 mt-0.5" />
                                                                     <a
                                                                         href={chunk.web.uri}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        // Added break-all for better long URL handling
-                                                                        className="text-blue-600 dark:text-blue-400 hover:underline hover:bg-blue-50 dark:hover:bg-blue-900/30 px-1 py-0.5 rounded text-[11px] leading-snug break-words break-all group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors"
+                                                                        className="text-blue-600 dark:text-blue-400 hover:underline hover:bg-blue-50 dark:hover:bg-blue-900/30 px-1 py-0.5 rounded text-[9px] xs:text-[10px] leading-snug break-words group-hover:text-blue-500 dark:group-hover:text-blue-300 transition-colors"
                                                                         title={chunk.web.uri}
                                                                     >
                                                                         {chunk.web.title || chunk.web.uri}
@@ -621,18 +670,22 @@ export function AgentProcessVisualizer({
 
                                         {/* Error Details */}
                                         {isStepError && step.errorDetails && (
-                                            <div className="mt-2 pt-2 border-t border-dashed border-red-200 dark:border-red-800/50">
-                                                <span className="font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5 mb-1"><AlertCircle size={14} /> Error Details</span>
-                                                <pre className="whitespace-pre-wrap bg-red-50 dark:bg-red-900/30 p-2 rounded text-red-700 dark:text-red-300 text-[11px] font-mono border border-red-200 dark:border-red-800">{step.errorDetails}</pre>
+                                            <div className="mt-1.5 pt-1.5 border-t border-dashed border-red-200 dark:border-red-800/50">
+                                                <span className="font-medium text-red-600 dark:text-red-400 flex items-center gap-1 mb-1 text-[11px]"><AlertCircle size={12} /> Error Details</span>
+                                                <pre className="whitespace-pre-wrap bg-red-50 dark:bg-red-900/30 p-1.5 xs:p-2 rounded text-red-700 dark:text-red-300 text-[9px] xs:text-[10px] font-mono border border-red-200 dark:border-red-800 break-words">{step.errorDetails}</pre>
                                             </div>
                                         )}
                                     </AccordionContent>
                                 </AccordionItem>
                             </motion.div>
-                        );
-                    })}
-                </AnimatePresence>
-            </Accordion>
+                                        );
+                                    })}
+                                </AnimatePresence>
+                            </Accordion>
+                        </div> {/* End content padding div */}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
