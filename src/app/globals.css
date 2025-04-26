@@ -84,6 +84,114 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* Ghibli Theme - Earthy tones, soft blues/greens */
+  .ghibli {
+    --background: 195 30% 92%; /* Soft sky blue */
+    --foreground: 60 10% 25%; /* Dark earth brown */
+    --card: 40 40% 95%; /* Creamy paper */
+    --card-foreground: 60 10% 25%;
+    --popover: 40 40% 95%;
+    --popover-foreground: 60 10% 25%;
+    --primary: 120 40% 45%; /* Forest green */
+    --primary-foreground: 40 40% 95%;
+    --secondary: 35 50% 85%; /* Light wood */
+    --secondary-foreground: 60 10% 25%;
+    --muted: 35 50% 85%;
+    --muted-foreground: 60 8% 50%;
+    --accent: 25 70% 60%; /* Warm sun orange */
+    --accent-foreground: 60 10% 25%;
+    --destructive: 0 50% 55%; /* Muted red */
+    --destructive-foreground: 40 40% 95%;
+    --border: 195 20% 80%; /* Soft blue border */
+    --input: 195 20% 80%;
+    --ring: 120 40% 45%;
+    --chart-1: 120 40% 45%;
+    --chart-2: 25 70% 60%;
+    --chart-3: 195 30% 60%;
+    --chart-4: 35 50% 70%;
+    --chart-5: 60 10% 25%;
+    --sidebar-background: 40 40% 95%;
+    --sidebar-foreground: 60 10% 25%;
+    --sidebar-primary: 120 40% 45%;
+    --sidebar-primary-foreground: 40 40% 95%;
+    --sidebar-accent: 35 50% 85%;
+    --sidebar-accent-foreground: 60 10% 25%;
+    --sidebar-border: 195 20% 80%;
+    --sidebar-ring: 120 40% 45%;
+  }
+
+  /* Pink Theme - Various shades of pink */
+  .pink {
+    --background: 340 80% 96%; /* Very light pink */
+    --foreground: 330 40% 30%; /* Dark desaturated pink */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 330 40% 30%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 330 40% 30%;
+    --primary: 335 85% 65%; /* Bright pink */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 60% 90%; /* Light pink */
+    --secondary-foreground: 330 40% 30%;
+    --muted: 340 60% 90%;
+    --muted-foreground: 330 20% 50%;
+    --accent: 320 70% 75%; /* Magenta accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%; /* Standard red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 340 50% 85%; /* Pink border */
+    --input: 340 50% 85%;
+    --ring: 335 85% 65%;
+    --chart-1: 335 85% 65%;
+    --chart-2: 320 70% 75%;
+    --chart-3: 0 70% 60%;
+    --chart-4: 340 60% 90%;
+    --chart-5: 330 40% 30%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 330 40% 30%;
+    --sidebar-primary: 335 85% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 60% 90%;
+    --sidebar-accent-foreground: 330 40% 30%;
+    --sidebar-border: 340 50% 85%;
+    --sidebar-ring: 335 85% 65%;
+  }
+
+  /* Elderly Theme - High contrast, clear visuals */
+  .elderly {
+    --background: 0 0% 100%; /* White background */
+    --foreground: 0 0% 10%; /* Very dark gray/black text */
+    --card: 0 0% 98%; /* Off-white card */
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 210 80% 45%; /* Strong, clear blue */
+    --primary-foreground: 0 0% 100%; /* White text */
+    --secondary: 0 0% 90%; /* Light gray */
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%; /* Darker muted text */
+    --accent: 45 90% 50%; /* Bright yellow accent */
+    --accent-foreground: 0 0% 10%; /* Black text on accent */
+    --destructive: 0 80% 50%; /* Strong red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 70%; /* Clear gray border */
+    --input: 0 0% 70%;
+    --ring: 210 80% 45%;
+    --chart-1: 210 80% 45%;
+    --chart-2: 45 90% 50%;
+    --chart-3: 0 80% 50%;
+    --chart-4: 120 60% 40%; /* Clear green */
+    --chart-5: 0 0% 10%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 210 80% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 90%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 70%;
+    --sidebar-ring: 210 80% 45%;
+  }
 }
 
 @layer base {
@@ -95,4 +203,3 @@ body {
     @apply font-sans; /* Apply sans-serif font */
   }
 }
-
