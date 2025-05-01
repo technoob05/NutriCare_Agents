@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'; // Import usePathname
 import { Button } from '@/components/ui/button';
 import { Plus, MessageSquare, Settings, HelpCircle, Utensils, Menu, X, FileUp, Home, Trash2, ChevronLeft, ChevronRight, Mic, Camera } from 'lucide-react'; // Added Mic, Camera, ChevronLeft/Right
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils'; // Import cn utility
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +24,14 @@ import { AddSourceDialog } from '@/components/AddSourceDialog';
 import { SettingsDialogContent, SpeechSettings } from '@/components/SettingsDialogContent';
 import { HelpDialog } from '@/components/HelpDialog';
 
-// Define the structure for a chat history item
+// Constants for localStorage keys
+const CHAT_HISTORY_LIST_KEY = 'chatHistoryList';
+const CHAT_MESSAGES_PREFIX = 'chatMessages_';
+const CHAT_MOBI_HISTORY_LIST_KEY = 'chatMobiHistoryList';
+const CHAT_MOBI_MESSAGES_PREFIX = 'chatMobiMessages_';
+
+
+// Define the structure for a chat history item (for localStorage)
 interface ChatHistoryItem {
     id: number;
     title: string;
@@ -31,7 +39,9 @@ interface ChatHistoryItem {
     preferences?: string;
 }
 
-export function Sidebar() {
+// Removed SidebarProps interface
+
+export function Sidebar() { // Removed props destructuring
     const [isOpen, setIsOpen] = useState(true);
     const isMobile = useIsMobile();
     const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
@@ -44,6 +54,7 @@ export function Sidebar() {
     const [currentSources, setCurrentSources] = useState<{ files: File[], link: string }>({ files: [], link: '' });
     const router = useRouter();
     const searchParams = useSearchParams();
+    const pathname = usePathname(); // Get current pathname
     const activeChatId = searchParams.get('id');
 
     // --- Grouping Logic ---
@@ -93,9 +104,12 @@ export function Sidebar() {
         }
     }, [isMobile]);
 
-    // Function to load chat list metadata from localStorage
+    // Function to load chat list metadata from localStorage based on current path
     const loadChatList = useCallback(() => {
-        const storedList = localStorage.getItem('chatHistoryList');
+        const isMobi = pathname === '/chat-mobi';
+        const listKey = isMobi ? CHAT_MOBI_HISTORY_LIST_KEY : CHAT_HISTORY_LIST_KEY;
+        console.log(`Loading chat list from key: ${listKey}`); // Debug log
+        const storedList = localStorage.getItem(listKey);
         if (storedList) {
             try {
                 const parsedList = JSON.parse(storedList).map((item: any) => ({
@@ -104,25 +118,29 @@ export function Sidebar() {
                 }));
                 setChatHistory(parsedList.sort((a: ChatHistoryItem, b: ChatHistoryItem) => b.timestamp - a.timestamp));
             } catch (e) {
-                console.error("Failed to parse chat history list:", e);
-                localStorage.removeItem('chatHistoryList');
+                console.error(`Failed to parse chat history list from ${listKey}:`, e);
+                localStorage.removeItem(listKey);
                 setChatHistory([]);
             }
         } else {
+            console.log(`No chat list found for key: ${listKey}`); // Debug log
             setChatHistory([]);
         }
-    }, []);
+    }, [pathname]); // Depend on pathname
 
-    // Load chat list on initial mount and when sidebar opens
+    // Load chat list on initial mount, when sidebar opens, or pathname changes
     useEffect(() => {
         loadChatList();
-    }, [loadChatList, isOpen]);
+    }, [loadChatList, isOpen, pathname]);
 
-    // Save chat list metadata to localStorage
+    // Save chat list metadata to localStorage based on current path
     const saveChatHistoryList = (newList: ChatHistoryItem[]) => {
+        const isMobi = pathname === '/chat-mobi';
+        const listKey = isMobi ? CHAT_MOBI_HISTORY_LIST_KEY : CHAT_HISTORY_LIST_KEY;
+        console.log(`Saving chat list to key: ${listKey}`); // Debug log
         const sortedList = newList.sort((a, b) => b.timestamp - a.timestamp);
-        localStorage.setItem('chatHistoryList', JSON.stringify(sortedList));
-        setChatHistory(sortedList);
+        localStorage.setItem(listKey, JSON.stringify(sortedList));
+        setChatHistory(sortedList); // Update local state as well
     };
 
     const toggleSidebar = useCallback(() => {
@@ -130,6 +148,10 @@ export function Sidebar() {
     }, []);
 
     const handleNewChat = () => {
+        const isMobi = pathname === '/chat-mobi';
+        const messagesPrefix = isMobi ? CHAT_MOBI_MESSAGES_PREFIX : CHAT_MESSAGES_PREFIX;
+        const targetPath = isMobi ? '/chat-mobi' : '/chat';
+
         const now = Date.now();
         const newChat: ChatHistoryItem = {
             id: now,
@@ -137,46 +159,70 @@ export function Sidebar() {
             timestamp: now,
             preferences: preferences
         };
+        // saveChatHistoryList already uses the correct key based on pathname
         saveChatHistoryList([newChat, ...chatHistory]);
-        localStorage.setItem(`chatMessages_${newChat.id}`, JSON.stringify([]));
+        // Use the correct messages prefix
+        localStorage.setItem(`${messagesPrefix}${newChat.id}`, JSON.stringify([])); // Start with empty messages
         setNewChatTitle('');
         setPreferences('');
         setCurrentSources({ files: [], link: '' });
-        window.location.href = `/chat?id=${newChat.id}`;
+        // Navigate to the correct path
+        window.location.href = `${targetPath}?id=${newChat.id}`;
         toast({ title: "Đã tạo cuộc trò chuyện mới", description: `"${newChat.title}"` });
         if (isMobile) setIsOpen(false);
     };
 
     const clearChatHistory = () => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa tất cả lịch sử trò chuyện không?")) {
+        const isMobi = pathname === '/chat-mobi';
+        const listKey = isMobi ? CHAT_MOBI_HISTORY_LIST_KEY : CHAT_HISTORY_LIST_KEY;
+        const messagesPrefix = isMobi ? CHAT_MOBI_MESSAGES_PREFIX : CHAT_MESSAGES_PREFIX;
+        const targetPath = isMobi ? '/chat-mobi' : '/chat';
+
+        if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả lịch sử trò chuyện ${isMobi ? 'Chat Mobi' : 'Chat'} không?`)) {
             return;
         }
-        localStorage.removeItem('chatHistoryList');
-        chatHistory.forEach(chat => {
-            localStorage.removeItem(`chatMessages_${chat.id}`);
-        });
+        localStorage.removeItem(listKey);
+        // Need to reload the list from storage to get IDs to delete messages
+        const storedList = localStorage.getItem(listKey); // Re-read (or use state if sure it's up-to-date)
+        if (storedList) {
+             try {
+                 const parsedList: ChatHistoryItem[] = JSON.parse(storedList);
+                 parsedList.forEach(chat => {
+                     localStorage.removeItem(`${messagesPrefix}${chat.id}`);
+                 });
+             } catch (e) { console.error("Error parsing list for deletion:", e); }
+        }
+        // Also clear current state
         setChatHistory([]);
         toast({ title: "Lịch sử trò chuyện đã được xóa" });
-        window.location.href = '/chat';
+        window.location.href = targetPath; // Navigate to the base path
     };
 
     const handleDeleteChat = (chatIdToDelete: number, event: React.MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
 
+        const isMobi = pathname === '/chat-mobi';
+        const messagesPrefix = isMobi ? CHAT_MOBI_MESSAGES_PREFIX : CHAT_MESSAGES_PREFIX;
+        const targetPath = isMobi ? '/chat-mobi' : '/chat';
+
         if (!window.confirm(`Bạn có chắc chắn muốn xóa cuộc trò chuyện này không?`)) {
             return;
         }
 
-        console.log("Deleting chat:", chatIdToDelete);
+        console.log(`Deleting ${isMobi ? 'chat-mobi' : 'chat'} conversation:`, chatIdToDelete);
         const updatedList = chatHistory.filter(chat => chat.id !== chatIdToDelete);
+        // saveChatHistoryList already uses the correct key
         saveChatHistoryList(updatedList);
-        localStorage.removeItem(`chatMessages_${chatIdToDelete}`);
+        // Use the correct messages prefix for deletion
+        localStorage.removeItem(`${messagesPrefix}${chatIdToDelete}`);
         toast({ title: "Đã xóa cuộc trò chuyện" });
 
+        // If the currently active chat was deleted, navigate to the base path
         if (activeChatId === chatIdToDelete.toString()) {
-            router.push('/chat');
+            router.push(targetPath);
         }
+        // No need to manually reload list, saveChatHistoryList updates state
     };
 
     const handleSourcesAdded = (sources: { files: File[], link: string }) => {
@@ -277,7 +323,7 @@ export function Sidebar() {
                         </Button>
                     </Link>
 
-                    {/* Chat History Section - Now Grouped */}
+                    {/* Chat History Section - Reverted to original */}
                     {chatHistory.length === 0 && (
                         <p className="text-sm text-muted-foreground px-3 py-2">Chưa có cuộc trò chuyện nào.</p>
                     )}
@@ -288,46 +334,56 @@ export function Sidebar() {
                                 {chats.map((chat) => {
                                     const isActive = activeChatId === chat.id.toString();
                                     const chatDate = new Date(chat.timestamp);
-                                    const timeAgo = Math.round((Date.now() - chat.timestamp) / (1000 * 60));
-                                    let displayTime = `${timeAgo} phút trước`;
-                                    if (timeAgo >= 60) {
-                                        const hoursAgo = Math.round(timeAgo / 60);
-                                        displayTime = `${hoursAgo} giờ trước`;
-                                        if (hoursAgo >= 24) {
-                                            displayTime = chatDate.toLocaleDateString('vi-VN');
-                                        }
-                                    }
-                                    if (timeAgo < 1) displayTime = "Vừa xong";
+                                            const timeAgo = Math.round((Date.now() - chat.timestamp) / (1000 * 60));
+                                            let displayTime = `${timeAgo} phút trước`;
+                                            if (timeAgo >= 60) {
+                                                const hoursAgo = Math.round(timeAgo / 60);
+                                                displayTime = `${hoursAgo} giờ trước`;
+                                                if (hoursAgo >= 24) {
+                                                    displayTime = chatDate.toLocaleDateString('vi-VN');
+                                                }
+                                            }
+                                            if (timeAgo < 1) displayTime = "Vừa xong";
 
-                                    return (
-                                        <Link key={chat.id} href={`/chat?id=${chat.id}`} passHref className="block group relative">
-                                            <Button
-                                                variant={isActive ? "secondary" : "ghost"}
-                                                className="w-full justify-between h-auto py-1.5 px-2 text-left"
-                                            >
-                                                <div className="flex items-center overflow-hidden">
-                                                    <MessageSquare className="mr-2 h-4 w-4 flex-shrink-0" />
-                                                    <div className="flex flex-col overflow-hidden">
-                                                        <span className="truncate text-sm font-medium">{chat.title}</span>
-                                                        <span className="text-xs text-muted-foreground">{displayTime}</span>
+                                            // Determine the correct link path
+                                            const linkPath = pathname === '/chat-mobi' ? `/chat-mobi?id=${chat.id}` : `/chat?id=${chat.id}`;
+
+                                            return (
+                                                <Link key={chat.id} href={linkPath} passHref className="block group relative rounded-md"> {/* Added rounded-md */}
+                                                    {/* Use a div styled like a button instead of nesting buttons */}
+                                                    <div
+                                                        className={cn(
+                                                            "flex w-full items-center justify-between h-auto py-1.5 px-2 text-left rounded-md transition-colors", // Base styles + rounded
+                                                            isActive
+                                                                ? "bg-secondary text-secondary-foreground" // Active styles
+                                                                : "hover:bg-muted" // Hover styles for non-active
+                                                        )}
+                                                    >
+                                                        {/* Main content */}
+                                                        <div className="flex items-center overflow-hidden flex-1 mr-2"> {/* Added flex-1 and mr-2 */}
+                                                            <MessageSquare className="mr-2 h-4 w-4 flex-shrink-0" />
+                                                            <div className="flex flex-col overflow-hidden">
+                                                                <span className="truncate text-sm font-medium">{chat.title}</span>
+                                                                <span className="text-xs text-muted-foreground">{displayTime}</span>
+                                                            </div>
+                                                        </div>
+                                                        {/* Delete button - Sibling to content, absolutely positioned by parent Link */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive z-10" // Added z-10
+                                                            onClick={(e) => handleDeleteChat(chat.id, e)}
+                                                            aria-label="Xóa cuộc trò chuyện"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
                                                     </div>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
-                                                    onClick={(e) => handleDeleteChat(chat.id, e)}
-                                                    aria-label="Xóa cuộc trò chuyện"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </Button>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
                 </div>
 
                 {/* Footer Activity Section */}

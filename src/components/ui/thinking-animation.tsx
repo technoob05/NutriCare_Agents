@@ -3,44 +3,65 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    BrainCircuit, // Reasoning/Planning
-    Cog,          // Settings/Processing
-    Database,     // Generic Database
-    DatabaseZap,  // RAG (Search/Query)
+    Apple,        // Nutrition icon
+    HeartPulse,   // Health monitoring
+    Microscope,   // Analysis
+    ClipboardCheck, // Recommendations
     CheckCircle,  // Check Mark
     ArrowRightLeft, // Interaction
-    Zap,          // Action/Trigger
+    Dumbbell,     // Fitness
     Loader,       // Loader Icon
     Bot,          // Bot Icon
-    TerminalSquare, // Prompt/Input Icon
-    Edit3,        // Writer (Pencil Icon)
-    ListChecks,   // Formatter/Menu (Checklist Icon)
-    SearchCheck,  // RAG with check
-    CircleDot     // Progress indicator
+    Salad,        // Healthy Food
+    Utensils,     // Meal Planning
+    ListChecks,   // Formatter/Menu
+    SearchCheck,  // Search with check
+    CircleDot,    // Progress indicator
+    Brain,        // Intelligence/Analysis
+    Calculator    // Nutrient Calculation
 } from 'lucide-react';
 
-// Animation presets for consistent behavior
+// Animation timing presets
 const ANIMATION_PRESETS = {
-  // Standard timing for smooth animations
   standardTiming: {
     staggerChildren: 0.3,
     duration: 0.6,
     bounce: 0.2,
-    stiffness: 90,
-    damping: 12
+    stiffness: 100,
+    damping: 15
   },
-  // Subtle pulse animation for visual interest without distraction
   subtlePulse: {
-    scale: [0.95, 1.05, 0.95],
-    opacity: [0.7, 1, 0.7],
+    scale: [0.97, 1.03, 0.97],
+    opacity: [0.8, 1, 0.8],
     duration: 2.0,
     repeat: Infinity,
     ease: "easeInOut"
   }
 };
 
-// --- Variant 1: Sequential Steps (Icon Only) ---
-const SequentialStepsAnimation = ({ completed = [] }: { completed: number[] }) => {
+// Nutricare brand colors - can be adjusted based on actual brand guidelines
+const NUTRICARE_COLORS = {
+  primary: "text-emerald-600 dark:text-emerald-500",
+  secondary: "text-teal-500 dark:text-teal-400",
+  accent: "text-amber-500 dark:text-amber-400",
+  highlight: "text-sky-500 dark:text-sky-400",
+  neutral: "text-gray-600 dark:text-gray-400",
+  success: "text-green-600 dark:text-green-500",
+  
+  // Background colors
+  primaryBg: "bg-emerald-100 dark:bg-emerald-900/20",
+  secondaryBg: "bg-teal-100 dark:bg-teal-900/20",
+  accentBg: "bg-amber-100 dark:bg-amber-900/20",
+  highlightBg: "bg-sky-100 dark:bg-sky-900/20",
+  neutralBg: "bg-gray-100 dark:bg-gray-800/40",
+  successBg: "bg-green-100 dark:bg-green-900/20",
+  
+  // Gradient
+  gradient: "from-emerald-500 to-teal-500"
+};
+
+// --- Variant 1: Nutrition Assessment Steps ---
+const NutritionStepsAnimation = ({ completed = [] }: { completed: number[] }) => {
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
@@ -52,7 +73,7 @@ const SequentialStepsAnimation = ({ completed = [] }: { completed: number[] }) =
     };
 
     const itemVariants = {
-        hidden: { opacity: 0, y: 15 },
+        hidden: { opacity: 0, y: 12 },
         visible: {
             opacity: 1,
             y: 0,
@@ -64,23 +85,30 @@ const SequentialStepsAnimation = ({ completed = [] }: { completed: number[] }) =
         },
     };
 
-    const icons = [BrainCircuit, Cog, DatabaseZap, CheckCircle];
+    // Health-focused icons
+    const icons = [Apple, Microscope, HeartPulse, ClipboardCheck];
+    const labels = ["Intake", "Analysis", "Health", "Plan"];
 
     return (
         <motion.div
-            className="flex items-center justify-center space-x-4 p-2"
+            className="flex items-center justify-center space-x-4 p-3"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
             role="status"
-            aria-label="Processing request"
+            aria-label="Nutrition assessment in progress"
         >
             {icons.map((Icon, i) => (
-                <motion.div key={i} variants={itemVariants} className="relative">
-                    <Icon 
-                        className={`w-5 h-5 ${completed.includes(i) ? 'text-green-500' : 'text-blue-500'}`}
-                        aria-hidden="true" 
-                    />
+                <motion.div key={i} variants={itemVariants} className="relative flex flex-col items-center">
+                    <div className={`p-2 rounded-full ${completed.includes(i) ? NUTRICARE_COLORS.successBg : NUTRICARE_COLORS.primaryBg}`}>
+                        <Icon 
+                            className={`w-5 h-5 ${completed.includes(i) ? NUTRICARE_COLORS.success : NUTRICARE_COLORS.primary}`}
+                            aria-hidden="true" 
+                        />
+                    </div>
+                    <span className={`text-xs mt-1 font-medium ${completed.includes(i) ? "text-green-600 dark:text-green-500" : "text-gray-500 dark:text-gray-400"}`}>
+                        {labels[i]}
+                    </span>
                     {completed.includes(i) && (
                         <motion.div 
                             className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"
@@ -92,7 +120,7 @@ const SequentialStepsAnimation = ({ completed = [] }: { completed: number[] }) =
                 </motion.div>
             ))}
             <motion.div
-                 className="w-1.5 h-1.5 bg-blue-400 rounded-full"
+                 className="w-1.5 h-1.5 bg-emerald-400 rounded-full"
                  initial={{ opacity: 0 }}
                  animate={{ opacity: [0, 1, 0]}}
                  transition={{ delay: 0.2, duration: 1, repeat: Infinity }}
@@ -102,8 +130,8 @@ const SequentialStepsAnimation = ({ completed = [] }: { completed: number[] }) =
     );
 };
 
-// --- Variant 2: Connecting Nodes (Network) ---
-const ConnectingNodesAnimation = () => {
+// --- Variant 2: Nutrient Analysis Network ---
+const NutrientNetworkAnimation = () => {
     const nodeVariants = {
         initial: { scale: 0.8, opacity: 0.7 },
         animate: (i: number) => ({
@@ -130,27 +158,36 @@ const ConnectingNodesAnimation = () => {
          })
      };
 
+    // Icons for nutrient analysis
+    const nodeIcons = [
+        <Apple className="w-3.5 h-3.5 text-white" />,
+        <Calculator className="w-3.5 h-3.5 text-white" />,
+        <ClipboardCheck className="w-3.5 h-3.5 text-white" />
+    ];
+
     return (
         <div 
-            className="flex items-center justify-center p-2 h-12 relative"
+            className="flex items-center justify-center p-2 h-16 relative"
             role="status"
-            aria-label="Processing network"
+            aria-label="Analyzing nutrients"
         >
-            {/* Nodes (Agents) */}
+            {/* Nodes (Nutrition Elements) */}
             {[0, 1, 2].map((i) => (
                 <motion.div
                     key={`node-${i}`}
-                    className="w-4 h-4 mx-8 bg-gradient-to-br from-purple-600 to-indigo-700 dark:from-purple-500 
-                               dark:to-indigo-600 rounded-full z-10 shadow-md"
+                    className="w-6 h-6 mx-8 bg-gradient-to-br from-emerald-600 to-teal-700 dark:from-emerald-500 
+                               dark:to-teal-600 rounded-full z-10 shadow-md flex items-center justify-center"
                     variants={nodeVariants}
                     initial="initial"
                     animate="animate"
                     custom={i}
                     aria-hidden="true"
-                />
+                >
+                    {nodeIcons[i]}
+                </motion.div>
             ))}
 
-             {/* Connection lines (SVG for flexibility) */}
+             {/* Connection lines (SVG) */}
              <svg className="absolute w-full h-full top-0 left-0 overflow-visible" aria-hidden="true">
                  {/* Line 1 */}
                  <motion.line
@@ -178,26 +215,33 @@ const ConnectingNodesAnimation = () => {
                  {/* Gradient definitions for prettier lines */}
                  <defs>
                      <linearGradient id="gradientLine1" x1="0%" y1="0%" x2="100%" y2="0%">
-                         <stop offset="0%" stopColor="rgba(139, 92, 246, 0.6)" /> {/* purple-500 */}
-                         <stop offset="100%" stopColor="rgba(99, 102, 241, 0.6)" /> {/* indigo-500 */}
+                         <stop offset="0%" stopColor="rgba(16, 185, 129, 0.6)" /> {/* emerald-500 */}
+                         <stop offset="100%" stopColor="rgba(20, 184, 166, 0.6)" /> {/* teal-500 */}
                      </linearGradient>
                      <linearGradient id="gradientLine2" x1="0%" y1="0%" x2="100%" y2="0%">
-                         <stop offset="0%" stopColor="rgba(99, 102, 241, 0.6)" /> {/* indigo-500 */}
-                         <stop offset="100%" stopColor="rgba(139, 92, 246, 0.6)" /> {/* purple-500 */}
+                         <stop offset="0%" stopColor="rgba(20, 184, 166, 0.6)" /> {/* teal-500 */}
+                         <stop offset="100%" stopColor="rgba(16, 185, 129, 0.6)" /> {/* emerald-500 */}
                      </linearGradient>
                  </defs>
              </svg>
+             
+             {/* Labels under nodes */}
+             <div className="absolute w-full flex justify-between px-12 text-xs text-gray-500 dark:text-gray-400 font-medium" style={{top: "70%"}}>
+                <span>Nutrition</span>
+                <span>Analysis</span>
+                <span>Results</span>
+             </div>
         </div>
     );
 };
 
-// --- Variant 3: Processing Cycle ---
-const ProcessingCycleAnimation = () => {
+// --- Variant 3: Nutrition Processing Animation ---
+const NutritionProcessingAnimation = () => {
     return (
         <div 
-            className="flex items-center justify-center p-2 space-x-3"
+            className="flex items-center justify-center p-3 space-x-4"
             role="status"
-            aria-label="Processing"
+            aria-label="Processing nutrition data"
         >
             <motion.div
                 animate={{ rotate: 360 }}
@@ -206,10 +250,10 @@ const ProcessingCycleAnimation = () => {
                     duration: 2,
                     ease: 'linear',
                 }}
-                className="relative"
+                className="relative bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20 p-2 rounded-full"
                 aria-hidden="true"
             >
-                <Cog className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <Brain className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <motion.div 
                     className="absolute inset-0 flex items-center justify-center"
                     animate={{ rotate: -360 }} // Counter-rotate
@@ -219,34 +263,46 @@ const ProcessingCycleAnimation = () => {
                         ease: 'linear',
                     }}
                 >
-                    <Cog className="w-3 h-3 text-blue-500" />
+                    <motion.div 
+                        className="w-2 h-2 bg-teal-500 rounded-full"
+                        animate={{ 
+                            opacity: [0.6, 1, 0.6],
+                            scale: [0.8, 1.2, 0.8] 
+                        }}
+                        transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    />
                 </motion.div>
             </motion.div>
             
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Processing...</span>
-            
-            <div className="flex space-x-1">
-                {[0, 1, 2].map((i) => (
-                    <motion.div
-                        key={`dot-${i}`}
-                        className="w-1.5 h-1.5 bg-gray-500 dark:bg-gray-400 rounded-full"
-                        animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{
-                            duration: 1, 
-                            repeat: Infinity, 
-                            ease: "easeInOut",
-                            delay: i * 0.2
-                        }}
-                        aria-hidden="true"
-                    />
-                ))}
+            <div className="flex flex-col">
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Analyzing nutrients</span>
+                <div className="flex space-x-1 mt-1">
+                    {[0, 1, 2].map((i) => (
+                        <motion.div
+                            key={`dot-${i}`}
+                            className="w-1.5 h-1.5 bg-teal-500 dark:bg-teal-400 rounded-full"
+                            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+                            transition={{
+                                duration: 1, 
+                                repeat: Infinity, 
+                                ease: "easeInOut",
+                                delay: i * 0.2
+                            }}
+                            aria-hidden="true"
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );
 };
 
-// --- Variant 4: Prompt and Bot (Interaction) ---
-const PromptBotAnimation = () => {
+// --- Variant 4: Nutrition Bot Interaction ---
+const NutritionBotAnimation = () => {
      const containerVariants = {
          hidden: { opacity: 0 },
          visible: { opacity: 1, transition: { staggerChildren: 0.4 } },
@@ -276,10 +332,10 @@ const PromptBotAnimation = () => {
              initial="hidden"
              animate="visible"
              role="status"
-             aria-label="Prompt and bot interaction"
+             aria-label="Nutrition bot interaction"
          >
-             <motion.div variants={itemVariants} className="flex items-center justify-center p-1.5 bg-green-100 dark:bg-green-900/20 rounded-full">
-                 <TerminalSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+             <motion.div variants={itemVariants} className={`flex items-center justify-center p-1.5 ${NUTRICARE_COLORS.primaryBg} rounded-full`}>
+                 <Salad className={`w-4 h-4 ${NUTRICARE_COLORS.primary}`} />
              </motion.div>
              
              <motion.div 
@@ -287,30 +343,30 @@ const PromptBotAnimation = () => {
                 className="flex flex-col items-center"
              >
                 <ArrowRightLeft className="w-5 h-5 text-gray-400" />
-                <span className="text-xs text-gray-500 mt-1">Processing</span>
+                <span className="text-xs text-gray-500 mt-1">Analyzing</span>
              </motion.div>
              
-             <motion.div variants={itemVariants} className="flex items-center justify-center p-1.5 bg-blue-100 dark:bg-blue-900/20 rounded-full">
-                 <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+             <motion.div variants={itemVariants} className="flex items-center justify-center p-1.5 bg-emerald-100 dark:bg-emerald-900/20 rounded-full">
+                 <Bot className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
              </motion.div>
          </motion.div>
      );
- };
+};
 
-// --- Variant 5: Sequential Steps With Text (Enhanced) ---
+// --- Variant 5: Detailed Nutrition Analysis Steps ---
 type StepType = {
     Icon: React.ElementType;
     text: string;
     color: string;
 };
 
-const SequentialStepsWithTextAnimation = ({ 
+const NutritionStepsWithTextAnimation = ({ 
     currentStep = 0, 
     steps = [
-        { Icon: SearchCheck, text: "RAG: Searching for relevant information...", color: "text-teal-500" },
-        { Icon: BrainCircuit, text: "Planning: Analyzing requirements...", color: "text-purple-500" },
-        { Icon: Edit3, text: "Writing: Drafting response...", color: "text-orange-500" },
-        { Icon: ListChecks, text: "Formatting: Organizing content...", color: "text-sky-500" },
+        { Icon: Apple, text: "Analyzing nutrient intake...", color: "text-emerald-600 dark:text-emerald-400" },
+        { Icon: Calculator, text: "Calculating nutritional requirements...", color: "text-teal-600 dark:text-teal-400" },
+        { Icon: HeartPulse, text: "Assessing health parameters...", color: "text-amber-600 dark:text-amber-400" },
+        { Icon: ClipboardCheck, text: "Generating personalized recommendations...", color: "text-sky-600 dark:text-sky-400" },
     ] 
 }: {
     currentStep?: number;
@@ -344,19 +400,18 @@ const SequentialStepsWithTextAnimation = ({
 
     return (
         <motion.div
-            // Removed min-w classes to allow shrinking
             className="flex flex-col items-center justify-center p-4 rounded-lg bg-white dark:bg-gray-800
                        border border-gray-100 dark:border-gray-700 shadow-sm"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
             role="status"
-            aria-label="Processing steps"
+            aria-label="Nutrition analysis progress"
         >
             {/* Progress bar */}
-            <div className="w-full h-1 bg-gray-100 dark:bg-gray-700 rounded-full mb-1 overflow-hidden">
+            <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full mb-2 overflow-hidden">
                 <motion.div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPercent}%` }}
                     transition={{ duration: 0.3 }}
@@ -366,13 +421,13 @@ const SequentialStepsWithTextAnimation = ({
             {steps.map((step, i) => (
                 <motion.div
                     key={i}
-                    className={`flex items-center space-x-3 w-full py-1 ${i === currentStep ? 'animate-pulse-subtle' : ''}`}
+                    className={`flex items-center space-x-3 w-full py-1.5 ${i === currentStep ? 'animate-pulse-subtle' : ''}`}
                     variants={itemVariants}
                     custom={i}
                 >
-                    <div className={`flex items-center justify-center p-1 rounded-full
-                                    ${i < currentStep ? 'bg-green-100 dark:bg-green-900/20' : 
-                                      i === currentStep ? 'bg-blue-100 dark:bg-blue-900/20' : 
+                    <div className={`flex items-center justify-center p-1.5 rounded-full
+                                    ${i < currentStep ? NUTRICARE_COLORS.successBg : 
+                                      i === currentStep ? NUTRICARE_COLORS.primaryBg : 
                                       'bg-gray-100 dark:bg-gray-700/50'}`}>
                         {i < currentStep ? (
                             <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -398,7 +453,7 @@ const SequentialStepsWithTextAnimation = ({
                             {[0, 1, 2].map(dotIndex => (
                                 <motion.div
                                     key={dotIndex}
-                                    className="w-1 h-1 bg-blue-500 dark:bg-blue-400 rounded-full"
+                                    className="w-1.5 h-1.5 bg-emerald-500 dark:bg-emerald-400 rounded-full"
                                     animate={{ 
                                         scale: [1, 1.3, 1], 
                                         opacity: [0.5, 1, 0.5] 
@@ -425,9 +480,74 @@ const SequentialStepsWithTextAnimation = ({
     );
 };
 
-// --- Main Component (Enhanced) ---
-const AgentThinkingAnimation = ({
-    variant = 'stepsWithText',
+// --- Variant 6: Meal Plan Generation (New Variant) ---
+const MealPlanAnimation = () => {
+    const mealItems = [
+        { name: "Breakfast", done: true },
+        { name: "Lunch", done: true },
+        { name: "Dinner", done: false },
+        { name: "Snacks", done: false }
+    ];
+
+    return (
+        <motion.div
+            className="flex flex-col p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            role="status"
+            aria-label="Generating meal plan"
+        >
+            <div className="flex items-center mb-2">
+                <Utensils className="w-4 h-4 mr-2 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Creating Meal Plan</span>
+            </div>
+
+            <div className="space-y-2">
+                {mealItems.map((meal, i) => (
+                    <motion.div 
+                        key={i}
+                        className="flex items-center px-2 py-1 rounded-md bg-gray-50 dark:bg-gray-700/40"
+                        initial={{ opacity: 0, x: -5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.15 }}
+                    >
+                        {meal.done ? (
+                            <CheckCircle className="w-3.5 h-3.5 mr-2 text-green-500 dark:text-green-400" />
+                        ) : (
+                            <motion.div
+                                className="w-3.5 h-3.5 mr-2 rounded-full border-2 border-emerald-500 border-t-transparent"
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            />
+                        )}
+                        <span className={`text-xs ${meal.done ? 'text-gray-600 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {meal.name}
+                        </span>
+                    </motion.div>
+                ))}
+            </div>
+
+            <motion.div 
+                className="w-full h-1 bg-gray-100 dark:bg-gray-700 rounded-full mt-2 overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+            >
+                <motion.div 
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                    initial={{ width: "50%" }}
+                    animate={{ width: ["50%", "75%"] }}
+                    transition={{ duration: 2, delay: 0.8, ease: "easeInOut" }}
+                />
+            </motion.div>
+        </motion.div>
+    );
+};
+
+// --- Main Component ---
+const NutricareAgentAnimation = ({
+    variant = 'nutritionSteps',
     className = '',
     currentStep = 1,
     isComplete = false,
@@ -435,7 +555,7 @@ const AgentThinkingAnimation = ({
     customSteps = null,
     showLabels = true,
 }: {
-    variant?: 'sequential' | 'nodes' | 'cycle' | 'promptBot' | 'stepsWithText';
+    variant?: 'nutritionSteps' | 'nutrientNetwork' | 'nutritionProcessing' | 'nutritionBot' | 'detailedAnalysis' | 'mealPlan';
     className?: string;
     currentStep?: number;
     isComplete?: boolean;
@@ -451,7 +571,7 @@ const AgentThinkingAnimation = ({
         if (isComplete) return;
         
         const timer = setTimeout(() => {
-            if (variant === 'stepsWithText' && progress < 3) {
+            if (variant === 'detailedAnalysis' && progress < 3) {
                 setProgress(prev => prev + 1);
             }
         }, 2000);
@@ -468,23 +588,25 @@ const AgentThinkingAnimation = ({
 
     const renderAnimation = () => {
         switch (variant) {
-            case 'stepsWithText':
+            case 'nutritionSteps':
+                return <NutritionStepsAnimation completed={completedSteps} />;
+            case 'nutrientNetwork':
+                return <NutrientNetworkAnimation />;
+            case 'nutritionProcessing':
+                return <NutritionProcessingAnimation />;
+            case 'nutritionBot':
+                return <NutritionBotAnimation />;
+            case 'detailedAnalysis':
                 return (
-                    <SequentialStepsWithTextAnimation 
+                    <NutritionStepsWithTextAnimation 
                         currentStep={isComplete ? 3 : progress} 
                         steps={customSteps || undefined}
                     />
                 );
-            case 'nodes':
-                return <ConnectingNodesAnimation />;
-            case 'cycle':
-                return <ProcessingCycleAnimation />;
-            case 'promptBot':
-                return <PromptBotAnimation />;
-            case 'sequential':
-                return <SequentialStepsAnimation completed={completedSteps} />;
+            case 'mealPlan':
+                return <MealPlanAnimation />;
             default:
-                return <SequentialStepsWithTextAnimation currentStep={isComplete ? 3 : progress} />;
+                return <NutritionStepsWithTextAnimation currentStep={isComplete ? 3 : progress} />;
         }
     };
 
@@ -505,22 +627,22 @@ const AgentThinkingAnimation = ({
                 </motion.div>
             </AnimatePresence>
             
-            {showLabels && variant !== 'stepsWithText' && variant !== 'promptBot' && (
-                <div className="mt-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {isComplete ? 'Complete' : 'Processing...'}
+            {showLabels && !['detailedAnalysis', 'nutritionBot', 'mealPlan'].includes(variant) && (
+                <div className="mt-2 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
+                    {isComplete ? 'Analysis Complete' : 'Analyzing Nutrition Data...'}
                 </div>
             )}
         </div>
     );
 };
 
-export default AgentThinkingAnimation;
+export default NutricareAgentAnimation;
 
 // Add these to your global CSS for the subtle animation
 /*
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  50% { opacity: 0.85; }
 }
 
 .animate-pulse-subtle {

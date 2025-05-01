@@ -48,6 +48,7 @@ import DailyTip from "@/components/DailyTip" // Added import
 import AiShowcase from "@/components/AiShowcase" // Added import
 import { SettingsDialogContent } from "@/components/SettingsDialogContent"; // Added import for settings
 import recommendationsData from "../../public/data/recommendations.json" // Import JSON data
+import { useTranslation } from "react-i18next";
 
 // Cập nhật giao diện Meal để khớp với recommendations.json
 interface Meal {
@@ -91,6 +92,7 @@ export default function HomePage() {
   // Initialize meals state directly from imported data
   const [meals, setMeals] = useState<Meal[]>(recommendationsData.meals || []);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDetails, setShowDetails] = useState(false)
@@ -265,7 +267,7 @@ export default function HomePage() {
                 onClick={() => router.push("/chat")}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Chat với AI
+                {t('chat_with_ai')}
               </Button>
 
               <div className="flex items-center gap-1">
@@ -304,14 +306,13 @@ export default function HomePage() {
             className="container mx-auto relative z-10"
           >
             <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-              AI Dinh Dưỡng Thông Minh
+              {t('ai_nutrition')}
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-purple-500">
-              Dinh dưỡng cá nhân hoá
+              {t('welcome')}
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Tối ưu hóa chế độ ăn của bạn với công nghệ AI tiên tiến.
-              Nhận gợi ý thực đơn được cá nhân hóa dựa trên nhu cầu của bạn.
+              {t('hero_subtitle')}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -321,7 +322,7 @@ export default function HomePage() {
                   className="shadow-lg relative group overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center">
-                    Bắt đầu ngay <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    {t('start_now')} <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                   <span className="absolute inset-0 bg-gradient-to-r from-primary to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </Button>
@@ -336,7 +337,7 @@ export default function HomePage() {
                     element?.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
-                  Khám phá món ăn
+                  {t('explore_meals')}
                 </Button>
               </motion.div>
             </div>
@@ -377,12 +378,12 @@ export default function HomePage() {
                           onClick={() => router.push("/profile")}
                         >
                           <UserCircle className="mr-1 h-3 w-3" />
-                           Hồ sơ
+                           {t('profile')}
                          </Button>
                          {/* Updated Settings Button to open Dialog */}
                          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setIsSettingsDialogOpen(true)}>
                            <Settings className="mr-1 h-3 w-3" /> {/* Added icon */}
-                           Cài đặt
+                           {t('settings')}
                          </Button>
                        </div>
                      </div> {/* Inner div for text-center/left */}
@@ -431,15 +432,15 @@ export default function HomePage() {
               <div className="flex flex-col space-y-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
                   <div>
-                    <h2 className="text-3xl font-bold">Món ăn gợi ý</h2>
+                    <h2 className="text-3xl font-bold">{t('suggested_meals')}</h2>
                     <p className="text-muted-foreground mt-1">
-                      Khám phá các món ăn đa dạng và dinh dưỡng được đề xuất cho bạn
+                      {t('suggested_meals_subtitle')}
                     </p>
                   </div>
                   {/* Ensure button doesn't take full width on small screens when stacked */}
                   <Button onClick={() => router.push("/chat")} className="shrink-0 w-full md:w-auto">
                     <MessageSquare className="mr-2 h-4 w-4" />
-                    Tùy chỉnh thực đơn
+                    {t('customize_menu')}
                   </Button>
                 </div>
 
@@ -448,11 +449,11 @@ export default function HomePage() {
                   <div className="relative flex-grow w-full md:w-auto">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Tìm kiếm món ăn hoặc nguyên liệu..."
+                      placeholder={t('search_placeholder')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
-                      aria-label="Tìm kiếm món ăn"
+                      aria-label={t('search_placeholder')}
                     />
                   </div>
 
@@ -462,10 +463,10 @@ export default function HomePage() {
                     className="w-full md:w-auto"
                   >
                     <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full md:w-auto">
-                      <TabsTrigger value="all">Tất cả</TabsTrigger>
-                      <TabsTrigger value="favorites">Yêu thích</TabsTrigger>
-                      <TabsTrigger value="highProtein">Giàu protein</TabsTrigger>
-                      <TabsTrigger value="lowCalorie">Ít calo</TabsTrigger>
+                      <TabsTrigger value="all">{t('all')}</TabsTrigger>
+                      <TabsTrigger value="favorites">{t('favorites')}</TabsTrigger>
+                      <TabsTrigger value="highProtein">{t('high_protein')}</TabsTrigger>
+                      <TabsTrigger value="lowCalorie">{t('low_calorie')}</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -577,7 +578,7 @@ export default function HomePage() {
                                 setShowDetails(true)
                               }}
                             >
-                              Chi tiết
+                              {t('details')}
                               <ChevronRight className="ml-1 h-4 w-4" />
                             </Button>
                           </div>
@@ -763,14 +764,14 @@ export default function HomePage() {
                       className="flex-1 sm:flex-auto"
                       onClick={() => setShowDetails(false)}
                     >
-                      Đóng
+                      {t('close')}
                     </Button>
                     {/* ---- PHẦN ĐƯỢC HOÀN THIỆN ---- */}
                     <Button
                       className="flex-1 sm:flex-auto"
                       onClick={() => router.push(`/chat?meal=${encodeURIComponent(selectedMeal.name)}`)}
                     >
-                      Chat về món này <MessageSquare className="ml-2 h-4 w-4" />
+                      {t('chat_about_meal')} <MessageSquare className="ml-2 h-4 w-4" />
                     </Button>
                      {/* ---- KẾT THÚC PHẦN HOÀN THIỆN ---- */}
                   </div>
@@ -786,10 +787,10 @@ export default function HomePage() {
             <DialogHeader>
               <DialogTitle className="flex items-center space-x-2">
                 <Settings className="h-5 w-5" />
-                <span>Cài đặt ứng dụng</span>
+                <span>{t('settings')}</span>
               </DialogTitle>
               <DialogDescription>
-                Quản lý API Key, lựa chọn model AI, và các tùy chọn khác.
+                {t('settings_description')}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 max-h-[70vh] overflow-y-auto px-1"> {/* Added scroll for content */}
