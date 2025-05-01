@@ -318,7 +318,6 @@ export function UnderstandMealDialog({ mealName, open, onOpenChange }: Understan
                 resetGameState('summary'); // Reset to summary stage initially
 
                 try {
-                    // await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
                     const response = await fetch(API_ENDPOINT, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -326,6 +325,7 @@ export function UnderstandMealDialog({ mealName, open, onOpenChange }: Understan
                     });
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const result: UnderstandMealData = await response.json();
+                    console.log('[UnderstandMealDialog] API result:', result); // <--- Thêm log này
                     // Basic validation (can be more robust)
                     if (!result?.summary) throw new Error("Invalid data: 'summary' missing.");
                     if (result.game && !Array.isArray(result.game.quiz)) result.game.quiz = [];

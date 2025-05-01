@@ -24,7 +24,10 @@ import { cn } from '@/lib/utils';
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { HealthInformationForm } from '@/components/HealthInformationForm'; // Corrected: Named import
-import { HeartPulse } from 'lucide-react'; // Import icon for health form
+import { HeartPulse, BrainCircuit, Trash2 } from 'lucide-react'; // Import icons
+import { useAuth } from '@/context/AuthContext'; // Import useAuth hook
+import { MemoryItem } from '@/services/memoryService'; // Import MemoryItem type
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // Import AlertDialog for confirmation
 
 // --- Constants ---
 const AGENT_KEYS = {
@@ -53,6 +56,21 @@ const initialSelectedModelsState = Object.values(AGENT_KEYS).reduce((acc, key) =
     return acc;
 }, {} as Record<AgentKey, string>);
 
+// --- Helper Function to format date ---
+function formatDate(isoString: string): string {
+    try {
+        return new Date(isoString).toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    } catch (e) {
+        return 'Invalid Date';
+    }
+}
+
 // --- SettingsDialogContent Component ---
 export function SettingsDialogContent() {
     const { toast } = useToast();
@@ -62,18 +80,28 @@ export function SettingsDialogContent() {
     const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
     const [apiKeyError, setApiKeyError] = useState<string | null>(null);
     const [defaultAccordionValue, setDefaultAccordionValue] = useState<string[]>([]);
+    const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
 
-    // Load initial state & fetch models if API key exists
+    // State for Memory Management
+    const [userMemories, setUserMemories] = useState<MemoryItem[]>([]);
+    const [isLoadingMemories, setIsLoadingMemories] = useState<boolean>(false);
+    const [memoryError, setMemoryError] = useState<string | null>(null);
+    const [isDeletingMemory, setIsDeletingMemory] = useState<string | null>(null); // Store ID of memory being deleted
+
+    // Load initial state & fetch models/memories if API key/user exists
+    // Combined useEffect for initial loading
     useEffect(() => {
+        // API Key Loading
         const savedApiKey = localStorage.getItem('userGeminiApiKey') || '';
         setApiKey(savedApiKey);
 
         if (!savedApiKey) {
-            setDefaultAccordionValue(["apiKeySection"]);
+            setDefaultAccordionValue(prev => [...prev, "apiKeySection"]); // Add to default open sections
         } else {
-             fetchModels(savedApiKey);
+            fetchModels(savedApiKey);
         }
 
+        // Model Selections Loading
         const loadedSelections = Object.values(AGENT_KEYS).reduce((acc, key) => {
             const storedValue = localStorage.getItem(key);
             acc[key] = storedValue || DEFAULT_MODEL_VALUE;
@@ -81,8 +109,17 @@ export function SettingsDialogContent() {
         }, {} as Record<AgentKey, string>);
         setSelectedModels(loadedSelections);
 
+        // Memory Fetching (only if user is loaded and logged in)
+        if (!authLoading && user) {
+            fetchUserMemories();
+        } else if (!authLoading && !user) {
+            // Clear memories if user logs out
+            setUserMemories([]);
+            setMemoryError("Bạn cần đăng nhập để xem và quản lý ngữ cảnh cá nhân hóa.");
+        }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [user, authLoading]); // Rerun when user or authLoading changes
 
     // Fetch models (Simulated)
     const fetchModels = useCallback(async (currentApiKey: string) => {
@@ -106,11 +143,84 @@ export function SettingsDialogContent() {
             setApiKeyError(errorMsg);
             setAvailableModels([]);
             toast({ title: "Lỗi", description: errorMsg, variant: "destructive" });
-            setDefaultAccordionValue(["apiKeySection"]);
+            setDefaultAccordionValue(prev => [...prev, "apiKeySection"]); // Add to default open sections
         } finally {
             setIsLoadingModels(false);
         }
     }, [toast]);
+
+    // Fetch User Memories
+    const fetchUserMemories = useCallback(async () => {
+        if (!user) {
+            setMemoryError("Người dùng chưa đăng nhập.");
+            return;
+        }
+        setIsLoadingMemories(true);
+        setMemoryError(null);
+        setUserMemories([]); // Clear previous memories
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/user-memory', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const data: MemoryItem[] = await response.json();
+            setUserMemories(data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())); // Sort newest first
+            // toast({ title: "Thành công", description: `Đã tải ${data.length} ngữ cảnh đã lưu.` });
+        } catch (error: any) {
+            console.error("Error fetching user memories:", error);
+            setMemoryError(`Không thể tải ngữ cảnh đã lưu: ${error.message}`);
+            toast({ title: "Lỗi", description: `Không thể tải ngữ cảnh: ${error.message}`, variant: "destructive" });
+        } finally {
+            setIsLoadingMemories(false);
+        }
+    }, [user, toast]);
+
+    // Delete User Memory
+    const handleDeleteMemory = useCallback(async (memoryId: string) => {
+        if (!user || isDeletingMemory) return; // Prevent multiple deletes
+
+        setIsDeletingMemory(memoryId); // Set deleting state for this specific item
+        setMemoryError(null);
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/user-memory?memoryId=${memoryId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                 // Handle specific errors like 404 Not Found if needed
+                 if (response.status === 404) {
+                     throw new Error("Ngữ cảnh không tồn tại hoặc đã bị xóa.");
+                 }
+                const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` })); // Try to parse error, fallback
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            // Remove from state on success
+            setUserMemories(prev => prev.filter(mem => mem.id !== memoryId));
+            toast({ title: "Đã xóa", description: "Ngữ cảnh đã được xóa thành công." });
+
+        } catch (error: any) {
+            console.error("Error deleting memory item:", error);
+            setMemoryError(`Lỗi khi xóa ngữ cảnh: ${error.message}`);
+            toast({ title: "Lỗi", description: `Không thể xóa ngữ cảnh: ${error.message}`, variant: "destructive" });
+        } finally {
+            setIsDeletingMemory(null); // Reset deleting state
+        }
+    }, [user, toast, isDeletingMemory]);
 
     // Handle API Key input change
     const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,6 +388,92 @@ export function SettingsDialogContent() {
                 <AccordionContent className="pt-4 px-1">
                     {/* Render the HealthInformationForm component */}
                     <HealthInformationForm />
+                </AccordionContent>
+            </AccordionItem>
+
+            {/* --- Personalization Context Section --- */}
+            <AccordionItem value="personalizationContextSection">
+                <AccordionTrigger className="text-base font-semibold hover:no-underline px-1">
+                    <div className="flex items-center space-x-2">
+                        <BrainCircuit className="h-5 w-5 text-muted-foreground" />
+                        <span>Ngữ cảnh Cá nhân hóa</span>
+                        {isLoadingMemories && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                        {memoryError && !isLoadingMemories && <span className="text-destructive ml-2 text-xs">(Có lỗi)</span>}
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4 px-1 space-y-3">
+                    {authLoading && (
+                        <div className="flex items-center space-x-2 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Đang kiểm tra trạng thái đăng nhập...</span>
+                        </div>
+                    )}
+                    {!authLoading && !user && (
+                        <p className="text-sm text-muted-foreground">{memoryError || "Bạn cần đăng nhập để xem mục này."}</p>
+                    )}
+                    {!authLoading && user && isLoadingMemories && (
+                        <div className="flex items-center space-x-2 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Đang tải ngữ cảnh đã lưu...</span>
+                        </div>
+                    )}
+                    {!authLoading && user && !isLoadingMemories && memoryError && (
+                        <p className="text-sm text-destructive">{memoryError}</p>
+                    )}
+                    {!authLoading && user && !isLoadingMemories && !memoryError && userMemories.length === 0 && (
+                        <p className="text-sm text-muted-foreground">Chưa có ngữ cảnh nào được lưu trữ.</p>
+                    )}
+                    {!authLoading && user && !isLoadingMemories && !memoryError && userMemories.length > 0 && (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            {userMemories.map((memory) => (
+                                <div key={memory.id} className="flex items-start justify-between space-x-2 p-2 border rounded bg-muted/30">
+                                    <div className="flex-grow">
+                                        <p className="text-sm">{memory.content}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Lưu lúc: {formatDate(memory.timestamp)}</p>
+                                    </div>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="flex-shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                disabled={isDeletingMemory === memory.id} // Disable button while deleting this specific item
+                                                aria-label={`Xóa ngữ cảnh: ${memory.content.substring(0, 20)}...`}
+                                            >
+                                                {isDeletingMemory === memory.id ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Xác nhận xóa?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Bạn có chắc chắn muốn xóa ngữ cảnh này không? Hành động này không thể hoàn tác.
+                                                    <br />
+                                                    <strong className="block mt-2 break-words">"{memory.content}"</strong>
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() => handleDeleteMemory(memory.id)}
+                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                >
+                                                    Xóa
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                     <p className="mt-2 text-xs text-muted-foreground">
+                        AI sẽ sử dụng ngữ cảnh này để cá nhân hóa các phản hồi và gợi ý trong tương lai. Bạn có thể xóa các ngữ cảnh không còn phù hợp.
+                    </p>
                 </AccordionContent>
             </AccordionItem>
 
