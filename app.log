@@ -3373,3 +3373,30 @@
 {"level":30,"time":1746117152311,"pid":22724,"hostname":"LAPTOP-7O541UFM","msg":"No analysis agents specified for general chat flow for user Pfbz8XmhATV3cRr6JOYU8aRCNd72."}
 {"level":30,"time":1746117152311,"pid":22724,"hostname":"LAPTOP-7O541UFM","msg":"[Agent: Synthesizer] Synthesizing results for input: \"helu\", Display Images: false"}
 {"level":30,"time":1746117153518,"pid":22724,"hostname":"LAPTOP-7O541UFM","msg":"No memory update suggestion found for user Pfbz8XmhATV3cRr6JOYU8aRCNd72 in this interaction."}
+{"level":30,"time":1746161541802,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Logger initialized successfully. Attempting to write to file."}
+{"level":50,"time":1746161541867,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Firebase Admin SDK initialization failed:"}
+{"level":30,"time":1746161911184,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Logger initialized successfully. Attempting to write to file."}
+{"level":30,"time":1746161911200,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Attempting to initialize Firebase Admin SDK using GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable."}
+{"level":30,"time":1746161911396,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Firebase Admin SDK initialized successfully using environment variable."}
+{"level":30,"time":1746161912614,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Received request for user Pfbz8XmhATV3cRr6JOYU8aRCNd72, agents: Synthesizer with input: \"helu\" (WebSearch: false, DisplayImages: inline)"}
+{"level":30,"time":1746161912618,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Fetched 1 long-term memory items for user Pfbz8XmhATV3cRr6JOYU8aRCNd72."}
+{"level":30,"time":1746161912776,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"Executing General Chat Flow (Analysis + Synthesis) for user Pfbz8XmhATV3cRr6JOYU8aRCNd72..."}
+{"level":30,"time":1746161912776,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"No analysis agents specified for general chat flow for user Pfbz8XmhATV3cRr6JOYU8aRCNd72."}
+{"level":30,"time":1746161912777,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[Agent: Synthesizer] Synthesizing results for input: \"helu\", Display Images: true"}
+{"level":30,"time":1746161913844,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[Agent: Synthesizer] Attempting to identify and fetch images for inline display..."}
+{"level":30,"time":1746161913845,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[Agent: Synthesizer] Potential food names identified: Chào Duy Minh, Bạn, Có"}
+{"level":30,"time":1746161913845,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Attempting to find image URL for: \"Chào Duy Minh\" (Original: \"Chào Duy Minh\")"}
+{"level":30,"time":1746161913845,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Performing fallback image search for: Chào Duy Minh món ăn"}
+{"level":30,"time":1746161913852,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Attempting to find image URL for: \"Bạn\" (Original: \"Bạn\")"}
+{"level":30,"time":1746161913852,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Performing fallback image search for: Bạn món ăn"}
+{"level":30,"time":1746161913854,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Attempting to find image URL for: \"Có\" (Original: \"Có\")"}
+{"level":30,"time":1746161913854,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Performing fallback image search for: Có món ăn"}
+{"level":50,"time":1746161914143,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Error during fallback image search for Chào Duy Minh món ăn:"}
+{"level":30,"time":1746161914143,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Fallback to Pexels search for: Chào Duy Minh food"}
+{"level":50,"time":1746161914157,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Error during fallback image search for Bạn món ăn:"}
+{"level":30,"time":1746161914157,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Fallback to Pexels search for: Bạn food"}
+{"level":30,"time":1746161914696,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Found image via search: https://ncn.com.vn/wp-content/uploads/2021/03/mon-an-ngon-trong-ngay-tet-voi-cach-che-bien-chong-ngan-nhung-mon-an-trong-ngay-tet-che-bien-voi-cach-chong-ngan.jpg"}
+{"level":30,"time":1746161914703,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Found image via Pexels: https://images.pexels.com/photos/8466658/pexels-photo-8466658.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"}
+{"level":30,"time":1746161915099,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[getImageUrlForMobi] Found image via Pexels: https://images.pexels.com/photos/6613959/pexels-photo-6613959.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"}
+{"level":30,"time":1746161915099,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"[Agent: Synthesizer] Fetched 3 images for inline display."}
+{"level":30,"time":1746161915099,"pid":16316,"hostname":"LAPTOP-7O541UFM","msg":"No memory update suggestion found for user Pfbz8XmhATV3cRr6JOYU8aRCNd72 in this interaction."}
