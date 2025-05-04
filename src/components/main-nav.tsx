@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, User, LogOut, LogIn, Home, ShoppingBasket, Coffee, MessageCircle, Info, FileText } from "lucide-react"; // Added FileText
+import { Menu, User, LogOut, LogIn, Home, ShoppingBasket, Coffee, MessageCircle, Info, FileText, ClipboardList } from "lucide-react"; // Added FileText, ClipboardList
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTranslation } from "react-i18next";
 
 // Animation variants
 const fadeIn = {
@@ -46,8 +45,6 @@ export function MainNav({
   const pathname = usePathname();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { i18n } = useTranslation();
-  const [showDropdown, setShowDropdown] = useState(false);
 
   // Navigation links with icons for better visual hierarchy
   const navLinks = [
@@ -56,6 +53,7 @@ export function MainNav({
     { href: "/recognize-meal", icon: <Coffee className="h-4 w-4 mr-2" />, label: "Recognize Meal" },
     { href: "/ai-explainer", icon: <Info className="h-4 w-4 mr-2" />, label: "AI Explainer" },
     { href: "/chat-mobi", icon: <MessageCircle className="h-4 w-4 mr-2" />, label: "Chat" },
+    { href: "/journey", icon: <ClipboardList className="h-4 w-4 mr-2" />, label: "Journey" }, // Added Journey link
     { href: "/policy", icon: <FileText className="h-4 w-4 mr-2" />, label: "Chính sách" }, // Added Policy link
   ];
 
@@ -92,11 +90,6 @@ export function MainNav({
       .map((n) => n[0])
       .join("")
       .toUpperCase();
-  };
-
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-    setShowDropdown(false);
   };
 
   return (
@@ -152,22 +145,6 @@ export function MainNav({
                 );
               })}
             </TooltipProvider>
-            <div className="relative ml-2">
-              <button
-                className="px-2 py-1 rounded text-sm border border-muted-foreground/20 bg-background hover:bg-muted/30 transition flex items-center gap-1"
-                onClick={() => setShowDropdown((v) => !v)}
-                aria-label="Change language"
-              >
-                🌐 {i18n.language === 'vi' ? 'VI' : 'EN'}
-                <svg className="ml-1 w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showDropdown && (
-                <div className="absolute right-0 mt-2 w-24 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow z-50">
-                  <button className="block w-full px-4 py-2 text-left hover:bg-muted/20" onClick={() => changeLanguage('en')}>English</button>
-                  <button className="block w-full px-4 py-2 text-left hover:bg-muted/20" onClick={() => changeLanguage('vi')}>Tiếng Việt</button>
-                </div>
-              )}
-            </div>
           </nav>
 
           {/* Auth Section */}

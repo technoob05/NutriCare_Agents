@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import admin from 'firebase-admin'; // <-- Add Firebase Admin SDK
-import { DecodedIdToken } from 'firebase-admin/auth'; // <-- Type for decoded token
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { searchImages } from 'duck-duck-scrape'; // <-- Add image search import
@@ -11,8 +9,6 @@ import { searchDuckDuckGo } from '@/services/duckduckgo'; // Import DDG search
 import { performRAG, Citation, RAGResult } from '@/ai/rag'; // Import RAG
 import logger from '@/lib/logger'; // Ensure logger is imported
 import { searchPexelsImages } from '@/services/pexels';
-import { JsonMemoryService, MemoryItem, MemoryService } from '@/services/memoryService'; // <-- Import Memory Service
-import { initializeFirebaseAdmin, verifyAuthToken } from '@/lib/firebase/adminUtils'; // <-- Import Admin Utils
 
 // --- Define Agent Names (Constants) ---
 const AGENT_NAMES = {
@@ -100,7 +96,6 @@ const MenuItemSchema = z.object({
   estimatedCost: z.string().optional(),
   reasoning: z.string().optional().describe("Detailed reason why this item was chosen, potentially citing sources."), // Added reasoning
   imageUrl: z.string().url().optional().describe("URL of a representative image for the menu item"), // <-- Add imageUrl
-  memoryUpdateSuggestion: z.string().optional().describe("Suggested text to save to long-term memory based on this item."), // <-- Add memory suggestion field
 });
 
 const DailyMenuSchema = z.object({
@@ -141,7 +136,6 @@ const MenuGeneratorSchema = z.object({
   })).optional().describe("Optional feedback from analysis agents run on the generated menu"),
   interactionSteps: z.array(AgentInteractionStepSchema).optional().describe("Steps taken by the agent(s) to generate the menu"),
   citations: z.array(CitationSchema).optional().describe("List of sources used for RAG during menu generation"), // Added citations
-  memoryUpdateSuggestion: z.string().optional().describe("Suggested text to save to long-term memory based on the overall menu generation process."), // <-- Add memory suggestion field
 });
 
 // --- Define Synthesizer Output Schema ---
@@ -155,7 +149,6 @@ const SynthesizerOutputSchema = z.object({
   content: z.string().describe("The final synthesized response text."),
   citations: z.array(CitationSchema).optional().describe("List of sources used for RAG during synthesis"),
   images: z.array(ImageAssociationSchema).optional().describe("List of identified food items and their fetched image URLs"), // <-- Add images field
-  memoryUpdateSuggestion: z.string().optional().describe("Suggested text to save to long-term memory based on the conversation."), // <-- Add memory suggestion field
 });
 
 
@@ -381,23 +374,17 @@ async function synthesizerAgent(userInput: string, analysisResults: any[], conte
     {ragContext}
     \`\`\`
 
-    **User's Long-Term Memory & Preferences (from previous interactions):**
-    \`\`\`text
-    {longTermMemoryContext}
-    \`\`\`
-
-    **Task:** Dựa vào **tất cả thông tin trên** (Internal Analysis, Web Context, Long-Term Memory), hãy soạn một câu trả lời **duy nhất** cho User Query.
+    **Task:** Dựa vào Internal Analysis Data và Retrieved Web Context, hãy soạn một câu trả lời **duy nhất** cho User Query.
     - **Phong cách:** Trò chuyện tự nhiên, ấm áp, và tích cực. Sử dụng ngôn ngữ đơn giản.
-    - **Nội dung:** Trả lời trực tiếp câu hỏi của người dùng. Tích hợp các điểm chính từ dữ liệu phân tích, **thông tin từ web context**, và **ghi nhớ từ các cuộc trò chuyện trước (\`longTermMemoryContext\`)** một cách liền mạch và cá nhân hóa.
-    - **Trích dẫn:** Nếu bạn sử dụng thông tin từ \`ragContext\`, hãy **trích dẫn nguồn** đáng tin cậy. Chỉ trả về các trích dẫn thực sự được sử dụng trong trường \`citations\`.
-    - **Quan trọng:** Không đề cập đến "các agent khác" hoặc "dữ liệu phân tích". Trình bày câu trả lời cuối cùng như thể đó là kiến thức của chính bạn, được cá nhân hóa dựa trên lịch sử tương tác.
-    - **Memory Update Suggestion:** Nếu cuộc trò chuyện này tiết lộ thông tin mới, quan trọng và **có thể hữu ích cho các lần tương tác trong tương lai** (ví dụ: người dùng nói họ bị dị ứng mới, có mục tiêu sức khỏe mới, thể hiện sở thích/không thích rõ ràng một loại thực phẩm/chế độ ăn), hãy tạo một câu tóm tắt ngắn gọn thông tin đó trong trường \`memoryUpdateSuggestion\`. Nếu không có gì mới đáng lưu, để trống trường này. Ví dụ: "User expressed a strong dislike for spicy food.", "User mentioned a new goal: training for a marathon.", "User is allergic to peanuts."
-    - **Trường hợp không có dữ liệu:** Nếu không có đủ thông tin liên quan, hãy trả lời một cách lịch sự.
-    - **Định dạng đầu ra JSON:** Phải tuân theo định dạng được yêu cầu.
+    - **Nội dung:** Trả lời trực tiếp câu hỏi của người dùng. Tích hợp các điểm chính từ dữ liệu phân tích và **thông tin từ web context** một cách liền mạch.
+    - **Trích dẫn:** Nếu bạn sử dụng thông tin từ \`ragContext\`, hãy **trích dẫn nguồn** bằng cách tham chiếu đến các URL được cung cấp trong \`ragContext\` hoặc sử dụng các nguồn được liệt kê trong \`ragCitations\` (nếu có). **Chỉ trả về các trích dẫn thực sự được sử dụng trong câu trả lời của bạn** trong trường \`citations\` của JSON output. Định dạng trích dẫn trong văn bản có thể là [Nguồn] hoặc (Nguồn: URL).
+    - **Quan trọng:** Không đề cập đến "các agent khác" hoặc "dữ liệu phân tích". Chỉ trình bày câu trả lời cuối cùng như thể đó là kiến thức của chính bạn, được hỗ trợ bởi các nguồn đáng tin cậy khi cần.
+    - **Trường hợp không có dữ liệu:** Nếu cả hai nguồn dữ liệu đều trống hoặc không liên quan, hãy trả lời một cách lịch sự rằng bạn chưa có đủ thông tin.
+    - **Định dạng đầu ra JSON:** Phải tuân theo định dạng được yêu cầu. Trả về danh sách các trích dẫn đã sử dụng trong trường \`citations\`.
 
     {formatInstructions}
     `,
-    inputVariables: ["userInput", "analysisContext", "ragContext", "longTermMemoryContext"], // Added longTermMemoryContext
+    inputVariables: ["userInput", "analysisContext", "ragContext"],
     partialVariables: { formatInstructions: parser.getFormatInstructions() },
   });
 
@@ -408,7 +395,6 @@ async function synthesizerAgent(userInput: string, analysisResults: any[], conte
       userInput: userInput,
       analysisContext: analysisContext,
       ragContext: ragContext,
-      longTermMemoryContext: userContext.longTermMemoryContext || "No previous chat context available.", // Pass memory context
     });
 
     let fetchedImages: z.infer<typeof ImageAssociationSchema>[] = [];
@@ -461,11 +447,10 @@ async function synthesizerAgent(userInput: string, analysisResults: any[], conte
             userInput: userInput,
             analysisContext: analysisContext,
             ragContext: ragContext,
-            longTermMemoryContext: userContext.longTermMemoryContext || "No previous chat context available.", // Pass memory context in fallback too
         });
         const fallbackContent = rawResult?.content as string || "Xin lỗi, đã có lỗi xảy ra khi xử lý yêu cầu của bạn.";
-        // No image fetching or memory suggestion in fallback
-        return { agent: agentName, status: 'success', content: fallbackContent.trim(), citations: ragCitations, images: undefined, memoryUpdateSuggestion: undefined };
+        // No image fetching in fallback
+        return { agent: agentName, status: 'success', content: fallbackContent.trim(), citations: ragCitations, images: undefined };
     } catch (fallbackError: any) {
         logger.error(`[Agent: ${agentName}] Fallback Error:`, fallbackError);
         return { agent: agentName, status: 'error', error: errorMessage };
@@ -576,27 +561,21 @@ async function menuGeneratorAgent(input: string, context?: any, ragResult?: RAGR
       **Loại thực đơn yêu cầu:** {menuType}
       {recommendationsContext}
 
-      **User's Long-Term Memory & Preferences (from previous interactions):**
-      \`\`\`text
-      {longTermMemoryContext}
-      \`\`\`
-
       **Retrieved Web Context (từ WHO, FSA, EU, etc.):**
       \`\`\`text
       {ragContext}
       \`\`\`
 
       **Nhiệm vụ:**
-      1.  **Tạo Thực Đơn:** Dựa vào **tất cả thông tin trên** (yêu cầu, thông tin người dùng, gợi ý, **long-term memory**, web context), tạo một thực đơn chi tiết ({menuType}). Bao gồm tên món, nguyên liệu, **hướng dẫn chế biến CHI TIẾT TỪNG BƯỚC** (\`preparation\`), và thông tin dinh dưỡng ước tính. **Cá nhân hóa thực đơn** dựa trên sở thích/hạn chế đã biết trong \`longTermMemoryContext\` và \`healthContext\`. **Ưu tiên sử dụng các món ăn trong danh sách gợi ý nếu phù hợp**.
-      2.  **Giải Thích Lựa Chọn (Reasoning):** Với **mỗi món ăn**, cung cấp lời giải thích (\`reasoning\`) tại sao nó được chọn, liên kết với mục tiêu/sở thích/hạn chế của người dùng (từ \`healthContext\` hoặc \`longTermMemoryContext\`) hoặc thông tin từ web context. **Nếu sử dụng thông tin từ web, hãy đề cập đến nguồn**.
-      3.  **Ghi Lại Quá Trình:** Mô tả các bước trong \`interactionSteps\`.
-      4.  **Trích Dẫn:** Thu thập tất cả các nguồn (\`citations\`) đã được tham khảo từ \`ragContext\` và đề cập trong \`reasoning\`.
-      5.  **Memory Update Suggestion:** Nếu quá trình tạo thực đơn này làm rõ hoặc xác nhận thông tin quan trọng về người dùng (ví dụ: xác nhận người dùng thích ăn cá hồi, không ăn được đồ cay, đang theo chế độ low-carb), hãy tạo một câu tóm tắt ngắn gọn trong trường \`memoryUpdateSuggestion\`. Nếu không có gì mới đáng lưu, để trống. Ví dụ: "User confirmed preference for salmon.", "User reiterated dislike for spicy food.", "Menu generated according to user's low-carb goal."
+      1.  **Tạo Thực Đơn:** Dựa vào yêu cầu, thông tin người dùng, danh sách gợi ý, và **thông tin từ web context**, tạo một thực đơn chi tiết ({menuType}). Bao gồm tên món, nguyên liệu, **hướng dẫn chế biến CHI TIẾT TỪNG BƯỚC** (trong trường \`preparation\`), và thông tin dinh dưỡng ước tính. **Ưu tiên sử dụng các món ăn trong danh sách gợi ý**. Nếu không có món gợi ý phù hợp, hãy tự tạo món ăn phù hợp, có thể dựa trên web context. Đảm bảo phần \`preparation\` là một chuỗi mô tả rõ ràng các bước nấu ăn.
+      2.  **Giải Thích Lựa Chọn (Reasoning):** Với **mỗi món ăn** trong thực đơn, cung cấp một lời giải thích ngắn gọn (\`reasoning\`) tại sao nó được chọn, liên kết với mục tiêu/sở thích của người dùng hoặc thông tin từ web context. **Nếu sử dụng thông tin từ web, hãy đề cập đến nguồn (ví dụ: "Theo WHO...", "Dựa trên hướng dẫn FSA...")**.
+      3.  **Ghi Lại Quá Trình:** Mô tả các bước bạn đã thực hiện trong \`interactionSteps\` (tuân thủ AgentInteractionStepSchema). Bao gồm các bước như 'Phân tích yêu cầu', 'Tham khảo web context', 'Lập kế hoạch bữa sáng', 'Thêm lý do chọn món', v.v.
+      4.  **Trích Dẫn:** Thu thập tất cả các nguồn (\`citations\`) đã được tham khảo từ \`ragContext\` và được đề cập trong phần \`reasoning\` của các món ăn. Chỉ bao gồm các nguồn thực sự được sử dụng.
 
-      **Định dạng đầu ra JSON:** Phải tuân thủ MenuGeneratorSchema. Bao gồm \`menuType\`, \`menuData\` (với \`reasoning\` và có thể có \`memoryUpdateSuggestion\` cho từng món), \`interactionSteps\`, \`citations\`, và một \`memoryUpdateSuggestion\` tổng thể cho cả quá trình.
+      **Định dạng đầu ra JSON:** Phải tuân thủ MenuGeneratorSchema. Bao gồm \`menuType\`, \`menuData\` (với \`reasoning\` cho mỗi món), \`interactionSteps\`, và \`citations\`.
       {formatInstructions}
       `,
-      inputVariables: ["userInput", "healthContext", "menuType", "recommendationsContext", "ragContext", "longTermMemoryContext"], // Added longTermMemoryContext
+      inputVariables: ["userInput", "healthContext", "menuType", "recommendationsContext", "ragContext"],
       partialVariables: { formatInstructions: parser.getFormatInstructions() },
   });
 
@@ -610,7 +589,6 @@ async function menuGeneratorAgent(input: string, context?: any, ragResult?: RAGR
           menuType: menuType,
           recommendationsContext: recommendationsContextString,
           ragContext: ragContext,
-          longTermMemoryContext: userContext.longTermMemoryContext || "No previous chat context available.", // Pass memory context
       });
       logger.info("[Agent: Menu Generator] Parsed LLM Output."); // Reduced logging verbosity
 
@@ -702,12 +680,10 @@ async function menuGeneratorAgent(input: string, context?: any, ragResult?: RAGR
                menuType: menuType,
                recommendationsContext: recommendationsContextString,
                ragContext: ragContext,
-               longTermMemoryContext: userContext.longTermMemoryContext || "No previous chat context available.", // Pass memory context in fallback too
            });
            // Cannot easily return menu structure here, return error with raw content if needed
            logger.error(`[Agent: ${AGENT_NAMES.MENU_GENERATOR}] Fallback raw output:`, rawResult?.content);
-           // No memory suggestion in fallback
-           return { agent: AGENT_NAMES.MENU_GENERATOR, status: 'error', error: errorMessage + " (Fallback content logged)", memoryUpdateSuggestion: undefined };
+           return { agent: AGENT_NAMES.MENU_GENERATOR, status: 'error', error: errorMessage + " (Fallback content logged)" };
        } catch (fallbackError: any) {
            logger.error(`[Agent: ${AGENT_NAMES.MENU_GENERATOR}] Fallback Error:`, fallbackError);
            return { agent: AGENT_NAMES.MENU_GENERATOR, status: 'error', error: errorMessage };
@@ -730,23 +706,9 @@ const agentFunctions: Record<AgentName, (input: string, arg2?: any, arg3?: any, 
   [AGENT_NAMES.REASONING_PLANNER]: reasoningPlannerAgent, // Correct type is Promise<ReadableStream<Uint8Array>>
 };
 
-// --- Instantiate Memory Service ---
-const memoryService: MemoryService = new JsonMemoryService();
-// Ensure Firebase Admin is initialized on startup (or lazily in verifyAuthToken)
-initializeFirebaseAdmin();
-
-
-// --- API Route Handler --- (Updated for Auth, Memory, RAG, Streaming)
+// --- API Route Handler --- (Updated for RAG and Streaming Reasoning)
 export async function POST(req: NextRequest) {
   try {
-    // 1. Verify Authentication
-    const decodedToken = await verifyAuthToken(req);
-    if (!decodedToken) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid or missing authentication token.' }, { status: 401 });
-    }
-    const userId = decodedToken.uid; // Use Firebase UID as the user identifier
-
-    // 2. Parse Request Body
     const body = await req.json();
 
     // 1. Validate Request Body
@@ -761,78 +723,33 @@ export async function POST(req: NextRequest) {
 
     // Extract data
     const { input, activeAgents, healthInfo, menuTimeframe, userRecommendations, enableWebSearch, displayImages } = validationResult.data;
-    logger.info(`Received request for user ${userId}, agents: ${activeAgents.join(', ')} with input: "${input}" (WebSearch: ${enableWebSearch}, DisplayImages: ${displayImages})`);
+    logger.info(`Received request for agents: ${activeAgents.join(', ')} with input: "${input}" (WebSearch: ${enableWebSearch}, DisplayImages: ${displayImages})`);
 
-    // 3. Fetch Long-Term Memory
-    let longTermMemory: MemoryItem[] = [];
-    try {
-      longTermMemory = await memoryService.getLongTermMemory(userId);
-      logger.info(`Fetched ${longTermMemory.length} long-term memory items for user ${userId}.`);
-    } catch (memError: any) {
-      logger.error(`Failed to fetch long-term memory for user ${userId}:`, memError);
-      // Decide if this is a fatal error or if we can proceed without memory
-      // For now, proceed without memory but log the error.
-    }
-
-    // Format memory for prompt injection
-    const memoryContextString = longTermMemory.length > 0
-      ? `**Relevant User History & Preferences (from previous chats):**\n${longTermMemory.map(m => `- ${m.content} (Saved: ${new Date(m.timestamp).toLocaleDateString()})`).join('\n')}`
-      : "No previous chat context available.";
-
-    // --- Auto extract personal info from chat input and save to memory if found ---
-    const personalInfoMemories: string[] = [];
-    // Detect name: "Tôi là ..." or "Tên tôi là ..."
-    const nameMatch = input.match(/(?:tôi là|tên tôi là|mình là)\s+([A-Za-zÀ-ỹ\s]+)/i);
-    if (nameMatch && nameMatch[1]) {
-      personalInfoMemories.push(`Tên: ${nameMatch[1].trim()}`);
-    }
-    // Detect allergy: "Tôi dị ứng ..." or "Tôi bị dị ứng ..."
-    const allergyMatch = input.match(/tôi (bị )?dị ứng\s+([A-Za-zÀ-ỹ,\s]+)/i);
-    if (allergyMatch && allergyMatch[2]) {
-      personalInfoMemories.push(`Dị ứng: ${allergyMatch[2].trim()}`);
-    }
-    // Detect goal: "Tôi muốn ...", "Mục tiêu của tôi là ..."
-    const goalMatch = input.match(/(?:tôi muốn|mục tiêu của tôi là)\s+([A-Za-zÀ-ỹ,\s]+)/i);
-    if (goalMatch && goalMatch[1]) {
-      personalInfoMemories.push(`Mục tiêu: ${goalMatch[1].trim()}`);
-    }
-    // Save each found info to memory (if not already present)
-    for (const mem of personalInfoMemories) {
-      if (!longTermMemory.some(m => m.content.includes(mem))) {
-        memoryService.saveLongTermMemory(userId, mem).catch(() => {});
-      }
-    }
-
-    // 4. Perform Web Search & RAG (if enabled)
+    // 2. Perform Web Search & RAG (if enabled)
     let ragResult: RAGResult | undefined = undefined;
     if (enableWebSearch) {
-      logger.info(`Web search enabled for user ${userId}. Searching DuckDuckGo for: "${input}"`);
+      logger.info(`Web search enabled. Searching DuckDuckGo for: "${input}"`);
       const searchResults = await searchDuckDuckGo(input, 5); // Get top 5 results
       if (searchResults.length > 0) {
-        logger.info(`Performing RAG for user ${userId} with ${searchResults.length} search results.`);
+        logger.info(`Performing RAG with ${searchResults.length} search results.`);
         ragResult = await performRAG(input, searchResults, 3); // Process top 3 relevant results
       } else {
-        logger.info(`No search results found for user ${userId}, skipping RAG.`);
+        logger.info('No search results found, skipping RAG.');
       }
     }
 
-    // 5. Prepare Context for Agents (including memory)
-    const agentContext: Record<string, any> = {
-        healthInfo,
-        menuTimeframe,
-        userRecommendations,
-        displayImages,
-        longTermMemoryContext: memoryContextString // <-- Add formatted memory context
-    };
+    // 3. Prepare Context for Agents
+    const agentContext: Record<string, any> = { healthInfo, menuTimeframe, userRecommendations, displayImages }; // <-- Pass displayImages preference
 
-    // 6. Conditional Agent Execution (Handle Reasoning Stream Separately)
+    // 4. Conditional Agent Execution (Handle Reasoning Stream Separately)
     if (activeAgents.includes(AGENT_NAMES.REASONING_PLANNER)) {
         // --- Reasoning Stream Flow ---
         // If Reasoning Planner is active, ONLY run it and stream the text back.
-        logger.info(`Executing Reasoning & Planning Stream Flow for user ${userId}...`);
+        logger.info("Executing Reasoning & Planning Stream Flow...");
         const reasoningAgentFunction = agentFunctions[AGENT_NAMES.REASONING_PLANNER];
         try {
-            // Pass input, context (including memory), and optional ragResult
+            // Pass input, context, and optional ragResult
+            // Note: reasoningPlannerAgent returns a Promise<ReadableStream>, not Promise<object>
             const stream = await reasoningAgentFunction(input, agentContext, ragResult) as ReadableStream<Uint8Array>;
 
             // Return the streaming response immediately
@@ -855,27 +772,25 @@ export async function POST(req: NextRequest) {
     } else {
         // --- Standard Agent Execution Flow (JSON Response) ---
         let finalResult: any;
-        let memoryUpdateSuggestion: string | undefined = undefined;
 
         // Filter out the reasoning planner if it somehow got included here
         const agentsToRun = activeAgents.filter(a => a !== AGENT_NAMES.REASONING_PLANNER);
 
         if (agentsToRun.length === 0) {
              // Handle case where only reasoning planner was selected but failed somehow before this point
-             logger.warn(`No agents to run in standard flow for user ${userId} after filtering Reasoning Planner.`);
+             logger.warn("No agents to run in standard flow after filtering Reasoning Planner.");
              return NextResponse.json({ error: "No agents available to process the request." }, { status: 400 });
         }
 
         if (agentsToRun.length === 1 && agentsToRun[0] === AGENT_NAMES.MENU_GENERATOR) {
             // --- Menu Generation Flow ---
-            logger.info(`Executing Menu Generator Flow for user ${userId}...`);
+            logger.info("Executing Menu Generator Flow...");
             const menuAgentFunction = agentFunctions[AGENT_NAMES.MENU_GENERATOR];
-            // Pass input, context (including memory), and optional ragResult
-            finalResult = await menuAgentFunction(input, agentContext, ragResult) as any; // Use 'any' temporarily
-            memoryUpdateSuggestion = finalResult?.memoryUpdateSuggestion; // Extract suggestion
+            // Pass input, context, and optional ragResult
+            finalResult = await menuAgentFunction(input, agentContext, ragResult) as object; // Cast back to object
         } else {
             // --- General Chat Flow (Analysis + Synthesis) ---
-            logger.info(`Executing General Chat Flow (Analysis + Synthesis) for user ${userId}...`);
+            logger.info("Executing General Chat Flow (Analysis + Synthesis)...");
             const analysisAgentsToRun = agentsToRun.filter(
                 name => name !== AGENT_NAMES.MENU_GENERATOR && name !== AGENT_NAMES.SYNTHESIZER
             );
@@ -888,46 +803,29 @@ export async function POST(req: NextRequest) {
                         logger.warn(`Agent function not found for: ${agentName}`);
                         return Promise.resolve({ agent: agentName, status: 'error', error: 'Agent implementation missing.' });
                     }
-                    // Pass context only if needed (Goal Alignment) - Now includes memory via agentContext
-                    const contextForAgent = agentName === AGENT_NAMES.GOAL_ALIGNMENT ? agentContext : undefined;
+                    // Pass context only if needed (Goal Alignment)
+                    const contextForAgent = agentName === AGENT_NAMES.GOAL_ALIGNMENT ? healthInfo : undefined;
                     // Note: Analysis agents currently don't receive RAG context, but could be adapted if needed
                     return agentFunction(input, contextForAgent) as Promise<object>; // Cast back to object
                 });
                 analysisResultsSettled = await Promise.allSettled(analysisPromises);
-                logger.info(`Analysis Agent Results for user ${userId}:`, JSON.stringify(analysisResultsSettled, null, 2));
+                logger.info("Analysis Agent Results:", JSON.stringify(analysisResultsSettled, null, 2));
             } else {
-                logger.info(`No analysis agents specified for general chat flow for user ${userId}.`);
+                logger.info("No analysis agents specified for general chat flow.");
             }
 
             // Execute Synthesizer Agent (always runs in this flow, even if no analysis agents)
             const synthesizerFunction = agentFunctions[AGENT_NAMES.SYNTHESIZER];
-            // Pass input, analysis results, context (including memory), and optional ragResult
-            finalResult = await synthesizerFunction(input, analysisResultsSettled, agentContext, ragResult) as any; // Use 'any' temporarily
-            memoryUpdateSuggestion = finalResult?.memoryUpdateSuggestion; // Extract suggestion
+            // Pass input, analysis results, context, and optional ragResult
+            finalResult = await synthesizerFunction(input, analysisResultsSettled, agentContext, ragResult) as object; // Cast back to object
         }
 
-        // 7. Save Long-Term Memory (Asynchronously - Don't block response)
-        if (memoryUpdateSuggestion && memoryUpdateSuggestion.trim() !== "") {
-          logger.info(`Saving memory suggestion for user ${userId}: "${memoryUpdateSuggestion}"`);
-          memoryService.saveLongTermMemory(userId, memoryUpdateSuggestion.trim())
-            .then(() => logger.info(`Successfully saved memory for user ${userId}.`))
-            .catch(err => logger.error(`Failed to save memory for user ${userId}:`, err));
-        } else {
-          logger.info(`No memory update suggestion found for user ${userId} in this interaction.`);
-        }
-
-        // 8. Return JSON Response for standard flow
-        // Remove the suggestion from the final response sent to the client if desired
-        if (finalResult && finalResult.memoryUpdateSuggestion) {
-            delete finalResult.memoryUpdateSuggestion;
-        }
+        // 5. Return JSON Response for standard flow
         return NextResponse.json(finalResult, { status: 200 });
     }
 
   } catch (error: any) {
-    // Log error with more context if possible (e.g., userId if available)
-    const userIdFromError = (error as any)?.userId || 'unknown'; // Attempt to get userId if attached to error
-    logger.error(`Error processing API request for user ${userIdFromError}:`, error);
+    logger.error('Error processing API request:', error);
     return NextResponse.json(
       { error: 'Internal server error processing request.', details: error.message },
       { status: 500 }

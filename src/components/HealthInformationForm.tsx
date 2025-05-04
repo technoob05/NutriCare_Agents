@@ -5,7 +5,6 @@ import axios from 'axios';
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/context/AuthContext";
 
 // --- UI Components ---
 import { Button } from "@/components/ui/button";
@@ -83,7 +82,6 @@ export function HealthInformationForm() {
     const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<string>("basic");
-    const { user } = useAuth();
 
     const form = useForm<HealthInformationFormValues>({
         resolver: zodResolver(formSchema),
@@ -144,24 +142,6 @@ export function HealthInformationForm() {
                 }
             } else {
                 console.warn("No 'recommendations' array found in API response to save.");
-            }
-
-            // --- Save health info to memory backend ---
-            let idToken = "";
-            if (user) {
-                idToken = await user.getIdToken();
-            }
-            try {
-                await fetch("/api/user-memory", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {})
-                    },
-                    body: JSON.stringify(payload)
-                });
-            } catch (memErr) {
-                console.error("Error saving health info to memory backend:", memErr);
             }
 
             setSubmissionState('success');

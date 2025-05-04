@@ -3,7 +3,6 @@
 // --- Core React/Next.js Imports ---
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation'; // Import useSearchParams
-import { useAuth } from "@/context/AuthContext";
 
 // --- UI Components ---
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,7 +55,6 @@ export function ChatInterface() {
   const searchParams = useSearchParams();
   const chatId = searchParams.get('id'); // Get chat ID from URL
   const { toast } = useToast(); // Keep for notifications
-  const { user } = useAuth(); // Get user from AuthContext
 
   // --- State Management ---
   // Initialize messages state - will be overwritten by loaded data
@@ -519,16 +517,6 @@ export function ChatInterface() {
         let response: Response;
         const apiUrl = '/api/chat-mobi'; // Define API URL
 
-        // Get Firebase ID token if user is logged in
-        let idToken = "";
-        if (user) {
-          try {
-            idToken = await user.getIdToken();
-          } catch (e) {
-            console.error("Failed to get Firebase ID token", e);
-          }
-        }
-
         if (fileToSend) {
             // Send as FormData if file exists
             const formData = new FormData();
@@ -544,7 +532,6 @@ export function ChatInterface() {
             response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData,
-                headers: idToken ? { 'Authorization': `Bearer ${idToken}` } : undefined,
                 // No 'Content-Type' header needed for FormData; browser sets it
             });
 
@@ -566,10 +553,7 @@ export function ChatInterface() {
 
             response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {})
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
             });
         }
@@ -728,7 +712,7 @@ export function ChatInterface() {
     }
   }, [
     inputValue, isLoading, activeTools, toast, isWebSearchEnabled,
-    imageDisplayMode, uploadedFile, userPreferences, user // Removed uploadedFilePreview dependency
+    imageDisplayMode, uploadedFile, userPreferences // Removed uploadedFilePreview dependency
   ]); // Keep dependencies
 
   // --- Action Handlers (passed down as props) ---
