@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, User, LogOut, LogIn, Home, ShoppingBasket, Coffee, MessageCircle, Info, FileText, ClipboardList } from "lucide-react"; // Added FileText, ClipboardList
+import { Menu, User, LogOut, LogIn, Home, ShoppingBasket, Coffee, MessageCircle, Info, FileText, ClipboardList, Newspaper as NewspaperIcon } from "lucide-react"; // Added FileText, ClipboardList, NewspaperIcon
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -53,6 +53,7 @@ export function MainNav({
     { href: "/recognize-meal", icon: <Coffee className="h-4 w-4 mr-2" />, label: "Recognize Meal" },
     { href: "/ai-explainer", icon: <Info className="h-4 w-4 mr-2" />, label: "AI Explainer" },
     { href: "/chat-mobi", icon: <MessageCircle className="h-4 w-4 mr-2" />, label: "Chat" },
+    { href: "/news", icon: <NewspaperIcon className="h-4 w-4 mr-2" />, label: "NutriNews" },
     { href: "/journey", icon: <ClipboardList className="h-4 w-4 mr-2" />, label: "Journey" }, // Added Journey link
     { href: "/policy", icon: <FileText className="h-4 w-4 mr-2" />, label: "Chính sách" }, // Added Policy link
   ];

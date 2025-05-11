@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  Utensils, PieChart, FileText, BarChart, CalendarDays, Database
+  Utensils, PieChart, FileText, BarChart, CalendarDays, Database, Smile
 } from 'lucide-react';
 
 // Define the structure for a suggested action
@@ -20,11 +20,13 @@ const suggestedActionsData: SuggestedAction[] = [
   { id: 'suggest-calories', text: 'Tính lượng calo', command: 'Tôi nên tiêu thụ bao nhiêu calo mỗi ngày với chiều cao 1m65, nặng 60kg và muốn giảm cân?', icon: <BarChart className="h-3.5 w-3.5 mr-1.5"/> },
   { id: 'suggest-meal-plan', text: 'Lên kế hoạch bữa ăn', command: 'Gợi ý thực đơn 7 ngày cho người tập gym muốn tăng cơ', icon: <CalendarDays className="h-3.5 w-3.5 mr-1.5"/> },
   { id: 'suggest-pantry', text: 'Quản lý tủ lạnh', command: 'Tôi có cà chua, trứng, hành và phô mai trong tủ lạnh. Có thể nấu món gì?', icon: <Database className="h-3.5 w-3.5 mr-1.5"/> },
+  { id: 'suggest-food-emotion', text: 'Món ăn theo cảm xúc', command: 'TRIGGER_EMOTION_FOOD_SUGGESTION', icon: <Smile className="h-3.5 w-3.5 mr-1.5"/> },
+  // Removed weather food suggestion from here as it's now a tool
 ];
 
 // Define props for the component
 interface SuggestedActionsProps {
-  onActionClick: (command: string) => void; // Callback when an action button is clicked
+  onActionClick: (command: string, actionId?: string) => void; // Callback when an action button is clicked, added actionId
 }
 
 export function SuggestedActions({ onActionClick }: SuggestedActionsProps) {
@@ -38,7 +40,7 @@ export function SuggestedActions({ onActionClick }: SuggestedActionsProps) {
             variant="outline"
             size="sm"
             className="text-xs h-9 bg-white dark:bg-gray-800 hover:bg-muted justify-start px-3"
-            onClick={() => onActionClick(action.command)} // Use the callback prop
+            onClick={() => onActionClick(action.command, action.id)} // Pass action.id
           >
             {action.icon}
             {action.text}

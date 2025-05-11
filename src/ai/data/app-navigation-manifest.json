@@ -1,0 +1,56 @@
+[
+  {
+    "pageName": "Trang chủ",
+    "route": "/",
+    "description": "Trang chính của ứng dụng NutriCare, nơi bạn có thể xem tổng quan và truy cập các tính năng chính.",
+    "keywords": ["home", "trang chủ", "dashboard", "tổng quan", "main page", "trang chính"]
+  },
+  {
+    "pageName": "Pantry Tracker",
+    "route": "/pantry-tracker",
+    "description": "Theo dõi và quản lý thực phẩm trong tủ lạnh và nhà bếp của bạn. Bạn có thể thêm mới, xóa bỏ, cập nhật số lượng và ngày hết hạn của các loại thực phẩm. Trang này cũng có thể gợi ý món ăn dựa trên nguyên liệu bạn có.",
+    "keywords": ["pantry", "tracker", "tủ lạnh", "nhà bếp", "quản lý thực phẩm", "thêm đồ ăn", "xóa đồ ăn", "cập nhật số lượng", "ngày hết hạn", "gợi ý món", "nguyên liệu", "còn gì ăn", "nấu gì hôm nay"]
+  },
+  {
+    "pageName": "Chat Mobi",
+    "route": "/chat-mobi",
+    "description": "Trò chuyện với các trợ lý AI chuyên gia về dinh dưỡng. Bạn có thể đặt câu hỏi, nhận lời khuyên cá nhân hóa, thảo luận về kế hoạch ăn uống và nhiều vấn đề sức khỏe khác.",
+    "keywords": ["chat", "mobi", "agents", "trò chuyện", "tư vấn dinh dưỡng", "hỏi đáp AI", "chuyên gia dinh dưỡng", "kế hoạch ăn uống", "sức khỏe"]
+  },
+  {
+    "pageName": "NutriNews",
+    "route": "/news",
+    "description": "Cập nhật những tin tức, bài viết và thông tin mới nhất về lĩnh vực dinh dưỡng, sức khỏe, các nghiên cứu khoa học và mẹo sống khỏe.",
+    "keywords": ["news", "tin tức", "nutrinews", "bài viết dinh dưỡng", "thông tin sức khỏe", "mẹo sống khỏe", "nghiên cứu mới"]
+  },
+  {
+    "pageName": "Journey",
+    "route": "/journey",
+    "description": "Theo dõi hành trình sức khỏe cá nhân của bạn. Tại đây, bạn có thể đặt ra các mục tiêu về cân nặng, dinh dưỡng, luyện tập và theo dõi tiến độ đạt được theo thời gian.",
+    "keywords": ["journey", "hành trình", "sức khỏe cá nhân", "mục tiêu", "cân nặng", "dinh dưỡng", "luyện tập", "theo dõi tiến độ"]
+  },
+  {
+    "pageName": "Recognize Meal",
+    "route": "/recognize-meal",
+    "description": "Sử dụng camera hoặc tải ảnh lên để AI nhận diện món ăn. Sau khi nhận diện, bạn sẽ nhận được thông tin chi tiết về thành phần dinh dưỡng ước tính của món ăn đó.",
+    "keywords": ["recognize meal", "nhận diện món ăn", "chụp ảnh món ăn", "phân tích món ăn", "thành phần dinh dưỡng", "calo", "protein", "carb", "fat"]
+  },
+  {
+    "pageName": "Profile",
+    "route": "/profile",
+    "description": "Xem và cập nhật thông tin cá nhân và sức khỏe của bạn như chiều cao, cân nặng, mục tiêu, bệnh lý nền, dị ứng thực phẩm.",
+    "keywords": ["profile", "hồ sơ", "cá nhân", "health information", "thông tin sức khỏe", "cập nhật chỉ số", "bệnh án", "dị ứng", "tài khoản"]
+  },
+  {
+    "pageName": "Giải thích AI",
+    "route": "/ai-explainer",
+    "description": "Tìm hiểu cách AI của NutriCare hoạt động, các mô hình được sử dụng và cách chúng tôi đảm bảo tính minh bạch và chính xác.",
+    "keywords": ["ai explainer", "giải thích AI", "cách AI hoạt động", "minh bạch AI", "mô hình AI", "how it works"]
+  },
+  {
+    "pageName": "Chính sách bảo mật",
+    "route": "/policy",
+    "description": "Đọc chi tiết về chính sách bảo mật dữ liệu người dùng và các điều khoản sử dụng dịch vụ của NutriCare.",
+    "keywords": ["policy", "chính sách", "bảo mật", "điều khoản", "quy định", "privacy"]
+  }
+]

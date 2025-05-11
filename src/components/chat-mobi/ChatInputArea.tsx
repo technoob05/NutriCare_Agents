@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
-  Plus, CalendarDays, ChefHat, Brain, Search, Image as ImageIconLucide,
+  Plus, CalendarDays, ChefHat, Brain, Search, Image as ImageIconLucide, CloudSun, Smile,
   Camera, FileText, Mic, StopCircle, SendHorizontal, Loader2, X
 } from 'lucide-react';
 import { ActiveToolIndicator } from './ActiveToolIndicator'; // Import the new component
@@ -135,6 +135,34 @@ export function ChatInputArea({
             >
               <Brain className="mr-2 h-4 w-4 text-purple-600 dark:text-purple-400" /> Suy luận chi tiết (XAI)
             </Button>
+            {/* --- Add Weather Food Suggestion Tool Button --- */}
+            <Button
+              variant={activeTools['weather-food'] ? 'secondary' : 'outline'}
+              className={cn(
+                "w-full justify-start h-9",
+                activeTools['weather-food']
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+                  : "border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              )}
+              onClick={() => onToggleTool('weather-food')}
+              disabled={isLoading}
+            >
+              <CloudSun className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" /> Món ăn theo thời tiết
+            </Button>
+
+            <Button
+              variant={activeTools['emotion-food'] ? 'secondary' : 'outline'}
+              className={cn(
+                "w-full justify-start h-9",
+                activeTools['emotion-food']
+                  ? "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300"
+                  : "border-pink-200 dark:border-pink-800 hover:bg-pink-50 dark:hover:bg-pink-900/20"
+              )}
+              onClick={() => onToggleTool('emotion-food')}
+              disabled={isLoading}
+            >
+              <Smile className="mr-2 h-4 w-4 text-pink-600 dark:text-pink-400" /> Món ăn theo cảm xúc
+            </Button>
 
             <Separator className="my-2" />
 
@@ -204,6 +232,8 @@ export function ChatInputArea({
                   activeTools['menu-daily'] ? 'thực đơn ngày' :
                   activeTools['menu-weekly'] ? 'thực đơn tuần' :
                   activeTools['extended-thinking'] ? 'suy luận chi tiết' :
+                  activeTools['weather-food'] ? 'món ăn theo thời tiết' :
+                  activeTools['emotion-food'] ? 'món ăn theo cảm xúc' :
                   'công cụ đã chọn'
                 }...`
               : "Hỏi về dinh dưỡng, món ăn, chế độ ăn uống..."}
@@ -232,7 +262,8 @@ export function ChatInputArea({
         {/* Send Button */}
         <Button
           onClick={onSendMessage}
-          disabled={isLoading || (!inputValue.trim() && !Object.keys(activeTools).some(k => activeTools[k]))} // Disable if no text and no active tool
+          // Disable if loading OR (no text input AND no file uploaded AND no tool active)
+          disabled={isLoading || (!inputValue.trim() && !uploadedFile && !Object.values(activeTools).some(v => v))}
           className="rounded-full w-10 h-10 p-0 flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600"
           aria-label="Gửi tin nhắn"
         >

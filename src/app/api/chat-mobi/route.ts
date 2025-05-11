@@ -156,7 +156,7 @@ const SynthesizerOutputSchema = z.object({
 const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.0-flash",
     apiKey: process.env.GOOGLE_GENAI_API_KEY,
-    temperature: 0.6, // Slightly increased for more creative menu generation
+    temperature: 0, // Slightly increased for more creative menu generation
     maxOutputTokens: 8192, // Max attempt for detailed weekly menus
 });
 
@@ -579,7 +579,14 @@ async function menuGeneratorAgent(input: string, context?: any, ragResult?: RAGR
       partialVariables: { formatInstructions: parser.getFormatInstructions() },
   });
 
-  const chain = prompt.pipe(model).pipe(parser); // Use parser directly
+  const menuGeneratorLlm = new ChatGoogleGenerativeAI({
+    model: "gemini-2.5-pro-exp-03-25",
+    apiKey: process.env.GOOGLE_GENAI_API_KEY,
+    temperature: 0,
+    maxOutputTokens: 65536,
+  });
+
+  const chain = prompt.pipe(menuGeneratorLlm).pipe(parser); // Use the new LLM instance
 
   try {
       logger.info("[Agent: Menu Generator] Invoking LLM chain with RAG context...");

@@ -83,12 +83,18 @@ export default function JourneyPage() {
   const [historyAnalysis, setHistoryAnalysis] = useState<HistoryAnalysisResult | null>(null); // State for analysis results
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isAnalyzingHistory, setIsAnalyzingHistory] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
 
 
   const journeyKey = user ? `nutricare_journey_${user.uid}` : null;
   const menuKey = 'nutricare_saved_menus';
 
   // --- Data Loading Effects ---
+
+  // Set hasMounted to true after the component has mounted
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Load Journey Data and Saved Menus from localStorage
   useEffect(() => {
@@ -116,11 +122,13 @@ export default function JourneyPage() {
         // Handle potential JSON parsing errors
         setJourneyData([]);
         setSavedMenus([]);
-        toast({
-            title: "Lỗi tải dữ liệu",
-            description: "Không thể tải dữ liệu hành trình hoặc menu đã lưu.",
-            variant: "destructive",
-        });
+        if (hasMounted) {
+          toast({
+              title: "Lỗi tải dữ liệu",
+              description: "Không thể tải dữ liệu hành trình hoặc menu đã lưu.",
+              variant: "destructive",
+          });
+        }
       } finally {
         setIsLoadingData(false);
       }
@@ -130,7 +138,7 @@ export default function JourneyPage() {
       setJourneyData([]);
       setSavedMenus([]);
     }
-  }, [user, authLoading, journeyKey, toast]); // Rerun when user or auth state changes
+  }, [user, authLoading, journeyKey, toast, hasMounted]); // Rerun when user or auth state changes
 
   // Load Chat Mobi History List from localStorage
   useEffect(() => {
@@ -149,16 +157,18 @@ export default function JourneyPage() {
         } catch (error) {
             console.error("Error loading chat history list:", error);
             setChatMobiHistoryList([]);
-             toast({
-                title: "Lỗi tải lịch sử chat",
-                description: "Không thể tải danh sách lịch sử trò chuyện.",
-                variant: "destructive",
-            });
+            if (hasMounted) {
+              toast({
+                  title: "Lỗi tải lịch sử chat",
+                  description: "Không thể tải danh sách lịch sử trò chuyện.",
+                  variant: "destructive",
+              });
+            }
         }
     } else if (!authLoading && !user) {
          setChatMobiHistoryList([]);
     }
-  }, [user, authLoading, toast]); // Rerun when user or auth state changes
+  }, [user, authLoading, toast, hasMounted]); // Rerun when user or auth state changes
 
 
   // Fetch Daily Question from API
@@ -192,11 +202,13 @@ export default function JourneyPage() {
   // Function to add a new journey entry (passed to the form)
   const addJourneyEntry = (newEntryData: Omit<JourneyEntry, 'insights'>) => {
     if (!journeyKey) {
+      if (hasMounted) {
         toast({
             title: "Lỗi",
             description: "Không thể lưu dữ liệu. Vui lòng đăng nhập.",
             variant: "destructive",
         });
+      }
         return;
     }
 
@@ -228,18 +240,22 @@ export default function JourneyPage() {
 
       try {
         localStorage.setItem(journeyKey, JSON.stringify(updatedData));
-         toast({
-            title: "Đã lưu!",
-            description: "Mục hành trình đã được thêm.",
-        });
+        if (hasMounted) {
+          toast({
+              title: "Đã lưu!",
+              description: "Mục hành trình đã được thêm.",
+          });
+        }
       } catch (error) {
         console.error("Error saving journey data to localStorage:", error);
         // Handle potential storage errors (e.g., quota exceeded)
-         toast({
-            title: "Lỗi lưu trữ",
-            description: "Không thể lưu dữ liệu hành trình vào bộ nhớ cục bộ.",
-            variant: "destructive",
-        });
+        if (hasMounted) {
+          toast({
+              title: "Lỗi lưu trữ",
+              description: "Không thể lưu dữ liệu hành trình vào bộ nhớ cục bộ.",
+              variant: "destructive",
+          });
+        }
       }
       return updatedData;
     });
@@ -248,11 +264,13 @@ export default function JourneyPage() {
   // Function to analyze chat history
   const analyzeChatHistory = useCallback(async () => {
       if (!user) {
-           toast({
-                title: "Lỗi",
-                description: "Vui lòng đăng nhập để phân tích lịch sử.",
-                variant: "destructive",
-            });
+        if (hasMounted) {
+          toast({
+              title: "Lỗi",
+              description: "Vui lòng đăng nhập để phân tích lịch sử.",
+              variant: "destructive",
+          });
+        }
           return;
       }
       if (isAnalyzingHistory) return;
@@ -290,11 +308,13 @@ export default function JourneyPage() {
           }
 
           if (!combinedHistoryText.trim()) {
-           toast({
-                title: "Không có lịch sử",
-                description: "Không tìm thấy lịch sử trò chuyện Chat Mobi để phân tích.",
-                variant: "default", // Changed from "info" to "default"
-            });
+            if (hasMounted) {
+              toast({
+                  title: "Không có lịch sử",
+                  description: "Không tìm thấy lịch sử trò chuyện Chat Mobi để phân tích.",
+                  variant: "default", // Changed from "info" to "default"
+              });
+            }
               setIsAnalyzingHistory(false);
               return;
           }
@@ -315,23 +335,27 @@ export default function JourneyPage() {
 
           const analysisResult: HistoryAnalysisResult = await response.json();
           setHistoryAnalysis(analysisResult);
-           toast({
+          if (hasMounted) {
+            toast({
                 title: "Phân tích hoàn tất",
                 description: "Đã phân tích lịch sử trò chuyện của bạn.",
             });
+          }
 
       } catch (error: any) {
           console.error("Error analyzing chat history:", error);
-           toast({
+          if (hasMounted) {
+            toast({
                 title: "Lỗi phân tích",
                 description: `Không thể phân tích lịch sử: ${error.message}`,
                 variant: "destructive",
             });
+          }
           setHistoryAnalysis(null); // Clear analysis on error
       } finally {
           setIsAnalyzingHistory(false);
       }
-  }, [user, chatMobiHistoryList, toast, isAnalyzingHistory]); // Depend on user, chatMobiHistoryList, toast, and isAnalyzingHistory state
+  }, [user, chatMobiHistoryList, toast, isAnalyzingHistory, hasMounted]); // Depend on user, chatMobiHistoryList, toast, and isAnalyzingHistory state
 
 
   // --- Render Logic ---

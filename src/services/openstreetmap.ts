@@ -122,3 +122,88 @@ async function test() {
 
 // test(); // Uncomment to run test when executing this file directly
 */
+
+const NOMINATIM_API_URL = 'https://nominatim.openstreetmap.org/search';
+
+export interface GeocodeResult {
+  lat: number;
+  lon: number;
+  displayName: string;
+}
+
+/**
+ * Geocodes an address string to latitude and longitude using Nominatim API.
+ *
+ * @param address The address string to geocode (e.g., "Hanoi, Vietnam").
+ * @returns A promise that resolves to a GeocodeResult object or null if not found.
+ */
+export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
+  const params = new URLSearchParams({
+    q: address,
+    format: 'json',
+    limit: '1', // We only need the top result
+    addressdetails: '1', // Include address details for better display name
+    // Consider adding 'accept-language': 'vi,en' if you want to influence language of results
+  });
+
+  const url = `${NOMINATIM_API_URL}?${params.toString()}`;
+  logger.info(`Geocoding address: "${address}" using Nominatim: ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'NutriCareApp/1.0 (contact@example.com)', // Good practice to set a User-Agent
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`Nominatim API error: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(`Nominatim API request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data && data.length > 0) {
+      const topResult = data[0];
+      const result: GeocodeResult = {
+        lat: parseFloat(topResult.lat),
+        lon: parseFloat(topResult.lon),
+        displayName: topResult.display_name,
+      };
+      logger.info(`Geocoded "${address}" to: ${result.displayName} (${result.lat}, ${result.lon})`);
+      return result;
+    } else {
+      logger.warn(`No geocoding results found for address: "${address}"`);
+      return null;
+    }
+  } catch (error) {
+    logger.error('Error fetching or processing data from Nominatim API:', error);
+    return null;
+  }
+}
+
+// Example usage for geocodeAddress (optional, for testing)
+/*
+async function testGeocode() {
+  const addressToTest = "Hồ Hoàn Kiếm, Hà Nội";
+  console.log(`Geocoding: "${addressToTest}"`);
+  const result = await geocodeAddress(addressToTest);
+  if (result) {
+    console.log("Geocoding Result:", result);
+  } else {
+    console.log("Geocoding failed or no results.");
+  }
+
+  const addressToTest2 = "1600 Amphitheatre Parkway, Mountain View, CA";
+   console.log(`Geocoding: "${addressToTest2}"`);
+  const result2 = await geocodeAddress(addressToTest2);
+  if (result2) {
+    console.log("Geocoding Result 2:", result2);
+  } else {
+    console.log("Geocoding failed or no results for address 2.");
+  }
+}
+// testGeocode();
+*/

@@ -82,6 +82,7 @@ export function HealthInformationForm() {
     const [submissionState, setSubmissionState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<string>("basic");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<HealthInformationFormValues>({
         resolver: zodResolver(formSchema),
@@ -98,8 +99,29 @@ export function HealthInformationForm() {
         mode: "onChange",
     });
 
+    // Handle tab navigation
+    const handleTabChange = (nextTab: string) => {
+        // For the "basic" tab, we should validate the gender field which is required
+        if (activeTab === "basic" && nextTab === "demographic") {
+            const genderValue = form.getValues("gender");
+            if (!genderValue) {
+                form.setError("gender", {
+                    type: "manual",
+                    message: "Vui lòng chọn giới tính."
+                });
+                return;
+            }
+        }
+        
+        setActiveTab(nextTab);
+    };
+
     // --- Submission Logic ---
-    async function onSubmit(values: HealthInformationFormValues) {
+    const handleFormSubmit = async (values: HealthInformationFormValues) => {
+        // Prevent multiple submissions
+        if (isSubmitting) return;
+        
+        setIsSubmitting(true);
         setSubmissionState('submitting');
         setErrorMessage(null);
         
@@ -155,8 +177,17 @@ export function HealthInformationForm() {
             console.error('Error sending data to API:', error);
             setSubmissionState('error');
             setErrorMessage("Có lỗi xảy ra khi gửi thông tin. Vui lòng thử lại sau.");
+        } finally {
+            setIsSubmitting(false);
         }
-    }
+    };
+
+    // Prevent form submit on Enter key in any input/textarea
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && e.target instanceof HTMLElement && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
+            e.preventDefault();
+        }
+    };
 
     return (
         <div className="w-full bg-background px-3 py-4">
@@ -172,7 +203,17 @@ export function HealthInformationForm() {
                     </CardHeader>
                     
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                        {/* Important change: Use onSubmit with a preventDefault to explicitly handle form submission */}
+                        <form 
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                if (activeTab === "health") {
+                                    form.handleSubmit(handleFormSubmit)();
+                                }
+                            }} 
+                            onKeyDown={handleKeyDown} 
+                            className="space-y-3"
+                        >
                             <CardContent className="pt-3 px-3 space-y-3">
                                 {/* --- Success Alert --- */}
                                 {submissionState === 'success' && (
@@ -447,8 +488,8 @@ export function HealthInformationForm() {
                                             size="sm"
                                             onClick={() => {
                                                 if (activeTab === "basic") return;
-                                                else if (activeTab === "demographic") setActiveTab("basic");
-                                                else if (activeTab === "health") setActiveTab("demographic");
+                                                else if (activeTab === "demographic") handleTabChange("basic");
+                                                else if (activeTab === "health") handleTabChange("demographic");
                                             }}
                                             disabled={activeTab === "basic"}
                                             className="text-xs h-8 px-3"
@@ -456,23 +497,12 @@ export function HealthInformationForm() {
                                             Quay lại
                                         </Button>
                                         
-                                        {activeTab !== "health" ? (
+                                        {activeTab === "health" ? (
                                             <Button 
-                                                type="button"
+                                                type="button" // Changed from "submit" to "button" 
                                                 size="sm"
-                                                onClick={() => {
-                                                    if (activeTab === "basic") setActiveTab("demographic");
-                                                    else if (activeTab === "demographic") setActiveTab("health");
-                                                }}
-                                                className="text-xs h-8 px-3"
-                                            >
-                                                Tiếp tục
-                                            </Button>
-                                        ) : (
-                                            <Button 
-                                                type="submit" 
-                                                disabled={submissionState === 'submitting' || submissionState === 'success'}
-                                                size="sm"
+                                                onClick={() => form.handleSubmit(handleFormSubmit)()}
+                                                disabled={isSubmitting || submissionState === 'success'}
                                                 className="text-xs h-8 px-3"
                                             >
                                                 {submissionState === 'submitting' ? (
@@ -490,6 +520,20 @@ export function HealthInformationForm() {
                                                         Gửi thông tin
                                                     </span>
                                                 )}
+                                            </Button>
+                                        ) : (
+                                            <Button 
+                                                type="button"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (activeTab === "basic") handleTabChange("demographic");
+                                                    else if (activeTab === "demographic") handleTabChange("health");
+                                                }}
+                                                className="text-xs h-8 px-3"
+                                            >
+                                                <span className="flex items-center justify-center">
+                                                    Tiếp tục
+                                                </span>
                                             </Button>
                                         )}
                                     </div>
