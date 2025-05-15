@@ -15,7 +15,7 @@
 
 **Live Demo (Deployed on Firebase):**
 
-## ✨ **[https://studio--vietnamese-diet-planner.us-central1.hosted.app/](https://studio--vietnamese-diet-planner.us-central1.hosted.app/)** ✨
+## ✨ **[https://studio--vietnamese-diet-planner.us-central1.hosted.app/](https://studio--vietnamese-diet-planner.us-central1.hosted.app/)](https://studio--nutricare-lite.us-central1.hosted.app/)** ✨
 
 ---
 
