@@ -13,6 +13,11 @@
 
 **Team:** 404 Brain Not Found
 
+## 🧠 Backend API
+Toàn bộ logic về phân tích dinh dưỡng và hệ thống đề xuất thực phẩm được xử lý bởi backend riêng biệt, bạn có thể tham khảo tại đây:
+👉 **[Food Recommendation API Repository](https://github.com/trungkiet2005/NutriCare-Recommend-API)**  
+> Đây là nơi tập trung core logic cho gợi ý thực đơn, phân tích hồ sơ sức khỏe người dùng và các xử lý liên quan đến dữ liệu dinh dưỡng.(Chứa các endpoints RESTful phục vụ cho hệ thống NutriCare AI Agents)
+
 **Live Demo (Deployed on Firebase):**
 
 ## ✨ **https://studio--nutricare-lite.us-central1.hosted.app/** ✨
